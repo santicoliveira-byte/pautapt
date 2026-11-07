@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #000000;
+  color: #f2f2f7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Allow text selection in inputs and notes */
+input, textarea, p, span, h1, h2, h3, h4 {
+  user-select: text;
+}
+
+/* Hide scrollbar for clean iOS look while keeping scrollability */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* iOS Safe Area Padding Utilities */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 1rem);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 1.25rem);
+}
+.safe-bottom-tab {
+  padding-bottom: calc(max(env(safe-area-inset-bottom), 0.75rem) + 4.5rem);
+}
+
+/* Tactile button press effect */
+.ios-pressable {
+  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease;
+}
+.ios-pressable:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* Glassmorphism */
+.ios-glass {
+  background: rgba(24, 24, 27, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ios-glass-card {
+  background: rgba(28, 28, 30, 0.7);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
