@@ -166,8 +166,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
 
   if (simulatorTab === 'secondary') {
     return (
-      <div className="max-w-md mx-auto pt-2 px-4 space-y-3">
-        {renderSegmentedTabs()}
+      <div className="max-w-5xl mx-auto pt-2 px-3 sm:px-6 space-y-3">
+        <div className="max-w-md mx-auto">
+          {renderSegmentedTabs()}
+        </div>
         <SecondaryAverageCalculator tests={tests} />
       </div>
     );
