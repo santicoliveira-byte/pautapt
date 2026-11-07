@@ -104,8 +104,6 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     <h3 className="text-sm font-bold text-white">{stat.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400">
                       <span>{stat.count} {stat.count === 1 ? 'teste' : 'testes'}</span>
-                      <span>•</span>
-                      <span>{stat.totalWeight}% peso total</span>
                     </div>
                   </div>
                 </div>
@@ -178,7 +176,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                             </p>
                             <p className="text-[10px] text-zinc-500 flex items-center gap-1">
                               <Calendar className="w-2.5 h-2.5" />
-                              {new Date(test.date).toLocaleDateString('pt-PT')} • {test.obtainedPoints}/{test.totalScale} pts ({test.weight}% peso)
+                              {new Date(test.date).toLocaleDateString('pt-PT')} • {test.obtainedPoints}/{test.totalScale} pts
                             </p>
                           </div>
                         </div>

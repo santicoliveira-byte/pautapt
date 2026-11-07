@@ -7,7 +7,6 @@ import {
 import {
   PORTUGAL_DEFAULT_SUBJECTS,
   SCALE_PRESETS,
-  TERMS_LIST,
   calculateGrade20,
   getClassification,
 } from '../utils/gradeUtils';
@@ -42,11 +41,11 @@ export const TestWizard: React.FC<TestWizardProps> = ({
   const [subject, setSubject] = useState<string>(initialTest?.subject || 'Matemática A');
   const [customSubject, setCustomSubject] = useState<string>('');
   const [title, setTitle] = useState<string>(initialTest?.title || '');
-  const [term, setTerm] = useState<string>(initialTest?.term || '1º Período');
+  const term = initialTest?.term || 'Geral';
   const [date, setDate] = useState<string>(
     initialTest?.date || new Date().toISOString().split('T')[0]
   );
-  const [weight, setWeight] = useState<number>(initialTest?.weight ?? 30);
+  const weight = initialTest?.weight ?? 1;
   const [totalScale, setTotalScale] = useState<number>(initialTest?.totalScale || 200);
   const [customScaleInput, setCustomScaleInput] = useState<string>('');
   const [mode, setMode] = useState<EvaluationMode>(initialTest?.mode || 'domains');
@@ -363,43 +362,6 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                 />
               </div>
             </div>
-
-            {/* Peso no Período & Período Letivo */}
-            <div className="pt-3 border-t border-white/5 grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-zinc-400 mb-1">
-                  Peso no Período (%)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={weight}
-                    onChange={(e) => setWeight(Number(e.target.value))}
-                    className="w-full bg-zinc-950/80 border border-white/10 rounded-2xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs text-zinc-500">%</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-zinc-400 mb-1">
-                  Momento de Avaliação
-                </label>
-                <select
-                  value={term}
-                  onChange={(e) => setTerm(e.target.value)}
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-2xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                >
-                  {TERMS_LIST.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
           </div>
 
           {/* Card: Estrutura do Teste (Domínios / Matérias) */}
@@ -574,7 +536,6 @@ export const TestWizard: React.FC<TestWizardProps> = ({
             obtainedPoints={currentTotalObtained}
             totalScale={mode === 'direct' ? totalScale : currentTotalMaxPoints}
             grade20={currentGrade20}
-            weight={weight}
             subject={finalSubjectName}
           />
 

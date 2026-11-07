@@ -179,8 +179,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div>
                       <h4 className="text-sm font-semibold text-white">{stat.name}</h4>
                       <p className="text-[11px] text-zinc-400">
-                        {stat.count} {stat.count === 1 ? 'teste registado' : 'testes'} •{' '}
-                        {stat.totalWeight}% peso acumulado
+                        {stat.count} {stat.count === 1 ? 'teste registado' : 'testes'}
                       </p>
                     </div>
                   </div>
@@ -263,7 +262,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </h4>
                       <p className="text-[10px] text-zinc-500">
                         {test.obtainedPoints} / {test.totalScale} pts ({test.percentage.toFixed(0)}%)
-                        {test.weight > 0 && ` • Peso ${test.weight}%`}
                       </p>
                     </div>
                   </div>

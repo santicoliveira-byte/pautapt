@@ -44,7 +44,7 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
         <div className="p-4 pb-2 flex items-center justify-between border-b border-white/5">
           <div>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">
-              {test.term} • {test.subject}
+              {test.subject}
             </span>
             <h3 className="text-base font-bold text-white truncate max-w-[280px]">
               {test.title}
