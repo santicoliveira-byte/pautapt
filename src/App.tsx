@@ -155,6 +155,7 @@ export const App: React.FC = () => {
           <SimulatorView
             tests={tests}
             initialSubject={simulatorSubject}
+            onNavigateToNewTest={handleNewTestForSubject}
           />
         )}
 

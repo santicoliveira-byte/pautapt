@@ -24,12 +24,14 @@ interface SimulatorViewProps {
   initialSubject?: string;
   initialTab?: 'test' | 'secondary' | 'higher-ed';
   onNavigateToCalculatorWithParams?: (subject: string, targetScore: number) => void;
+  onNavigateToNewTest?: (subject: string) => void;
 }
 
 export const SimulatorView: React.FC<SimulatorViewProps> = ({
   tests,
   initialSubject,
   initialTab = 'secondary',
+  onNavigateToNewTest,
 }) => {
   const [simulatorTab, setSimulatorTab] = useState<'test' | 'secondary' | 'higher-ed'>(initialTab);
   const subjectStats = calculateSubjectStats(tests);
@@ -170,7 +172,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
         <div className="max-w-md mx-auto">
           {renderSegmentedTabs()}
         </div>
-        <SecondaryAverageCalculator tests={tests} />
+        <SecondaryAverageCalculator
+          tests={tests}
+          onNavigateToNewTest={onNavigateToNewTest}
+        />
       </div>
     );
   }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolTest } from '../types';
+import { SchoolTest, SubjectStats } from '../types';
 import { calculateSubjectStats } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
@@ -11,7 +11,6 @@ import {
   Trash2,
   Sliders,
   Award,
-  RefreshCw,
   Info,
   Check,
 } from 'lucide-react';
@@ -22,20 +21,19 @@ export interface TableSubject {
   id: string;
   name: string;
   type: SubjectType;
-  grade10: number | null; // null if disabled
-  grade11: number | null; // null if disabled
-  grade12: number | null; // null if disabled
+  grade10: number | null; // 0-20 manual
+  grade11: number | null; // 0-20 manual
+  // Note: 12.º ano has NO manual grade; it is STRICTLY computed from the tests in the app!
   enConta: boolean; // "EN Conta?" Sim / Não
   examGrade: number | null; // 0-200 pontos
   acessoSuperior: boolean; // "Acesso ao Ensino Superior" Sim / Não (Prova de Ingresso)
   hasNationalExam: boolean; // false for Educação Física
-  useAppTests: boolean; // auto-pull 12th year grade from app tests
 }
 
-const STORAGE_KEY_TABLE = 'pautapt_secondary_table_v3';
-const STORAGE_KEY_COURSE = 'pautapt_secondary_course_v3';
-const STORAGE_KEY_WEIGHT_PRESET = 'pautapt_cnaes_weight_preset_v3';
-const STORAGE_KEY_ROUNDING = 'pautapt_rounding_mode_v3';
+const STORAGE_KEY_TABLE = 'pautapt_secondary_table_v4';
+const STORAGE_KEY_COURSE = 'pautapt_secondary_course_v4';
+const STORAGE_KEY_WEIGHT_PRESET = 'pautapt_cnaes_weight_preset_v4';
+const STORAGE_KEY_ROUNDING = 'pautapt_rounding_mode_v4';
 
 // Default Portuguese curriculum matching the official template
 const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
@@ -44,112 +42,94 @@ const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
     type: 'trienal',
     grade10: 15,
     grade11: 15,
-    grade12: 15,
     enConta: true,
     examGrade: 145,
     acessoSuperior: false,
     hasNationalExam: true,
-    useAppTests: true,
   },
   {
     name: 'Língua Estrangeira',
     type: 'bienal',
     grade10: 16,
     grade11: 16,
-    grade12: null,
     enConta: false,
     examGrade: null,
     acessoSuperior: false,
     hasNationalExam: true,
-    useAppTests: false,
   },
   {
     name: 'Filosofia',
     type: 'bienal',
     grade10: 15,
     grade11: 15,
-    grade12: null,
     enConta: false,
     examGrade: null,
     acessoSuperior: false,
     hasNationalExam: true,
-    useAppTests: false,
   },
   {
     name: 'Educação Física',
     type: 'trienal',
     grade10: 17,
     grade11: 17,
-    grade12: 17,
     enConta: false,
     examGrade: null,
     acessoSuperior: false,
     hasNationalExam: false,
-    useAppTests: false,
   },
   {
     name: 'Matemática A',
     type: 'trienal',
     grade10: 16,
     grade11: 16,
-    grade12: 16,
     enConta: true,
     examGrade: 160,
     acessoSuperior: false,
     hasNationalExam: true,
-    useAppTests: true,
   },
   {
     name: 'Bienal 1',
     type: 'bienal',
     grade10: 15,
     grade11: 15,
-    grade12: null,
     enConta: true,
     examGrade: 150,
     acessoSuperior: true, // Prova de Ingresso ativa
     hasNationalExam: true,
-    useAppTests: false,
   },
   {
     name: 'Bienal 2',
     type: 'bienal',
     grade10: 15,
     grade11: 15,
-    grade12: null,
     enConta: false,
     examGrade: null,
     acessoSuperior: false,
     hasNationalExam: true,
-    useAppTests: false,
   },
   {
     name: 'Opção 1 (12.º ano)',
     type: 'anual',
     grade10: null,
     grade11: null,
-    grade12: 16,
     enConta: false,
     examGrade: null,
     acessoSuperior: false,
     hasNationalExam: true,
-    useAppTests: true,
   },
   {
     name: 'Opção 2 (12.º ano)',
     type: 'anual',
     grade10: null,
     grade11: null,
-    grade12: 16,
     enConta: false,
     examGrade: null,
     acessoSuperior: false,
     hasNationalExam: true,
-    useAppTests: true,
   },
 ];
 
-// Course Presets to quickly adapt subject names
+// Course Presets to adapt subject names
 const COURSE_NAME_PRESETS: Record<
   string,
   { label: string; mapping: { [key: number]: { name: string } } }
@@ -202,10 +182,63 @@ const COURSE_NAME_PRESETS: Record<
 
 interface SecondaryAverageCalculatorProps {
   tests: SchoolTest[];
+  onNavigateToNewTest?: (subjectName: string) => void;
 }
 
-export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProps> = ({ tests }) => {
+export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProps> = ({
+  tests,
+  onNavigateToNewTest,
+}) => {
   const subjectStats = calculateSubjectStats(tests);
+
+  // Smart subject matching for tests
+  const normalize = (str: string) =>
+    str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+  const getSubjectStat = (tableName: string): SubjectStats | undefined => {
+    if (subjectStats[tableName]) return subjectStats[tableName];
+
+    const normTable = normalize(tableName);
+
+    // Exact normalized match
+    for (const [key, stat] of Object.entries(subjectStats)) {
+      if (normalize(key) === normTable) return stat;
+    }
+
+    // Substring / Keyword matching
+    for (const [key, stat] of Object.entries(subjectStats)) {
+      const normKey = normalize(key);
+      if (normTable.includes(normKey) || normKey.includes(normTable)) {
+        return stat;
+      }
+      const keywords = [
+        'portugues',
+        'matematica',
+        'fisic',
+        'quimic',
+        'biolog',
+        'educacao',
+        'filosof',
+        'ingles',
+        'geograf',
+        'histori',
+        'econom',
+        'desenh',
+        'geometr',
+      ];
+      for (const kw of keywords) {
+        if (normTable.includes(kw) && normKey.includes(kw)) {
+          return stat;
+        }
+      }
+    }
+
+    return undefined;
+  };
 
   // Subjects state
   const [subjects, setSubjects] = useState<TableSubject[]>(() => {
@@ -288,41 +321,62 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
     }
   }, [roundingMode]);
 
-  // Helper: compute effective 12th grade
-  const getEffectiveGrade12 = (s: TableSubject): number => {
-    if (s.type === 'bienal') return 0;
-    if (s.useAppTests && subjectStats[s.name]) {
-      return subjectStats[s.name].weightedAverage;
+  // STRICT: 12th year grade is ONLY retrieved from tests in the app!
+  const get12thGradeFromTests = (s: TableSubject): number | null => {
+    if (s.type === 'bienal') return null;
+    const stat = getSubjectStat(s.name);
+    if (stat && stat.count > 0) {
+      return stat.weightedAverage;
     }
-    return s.grade12 ?? 0;
+    return null;
   };
 
   // Helper: compute CI (Classificação Interna)
-  const computeCI = (s: TableSubject): number => {
-    let raw = 0;
+  const computeCI = (s: TableSubject): { value: number | null; isProvisional: boolean } => {
+    let raw: number | null = null;
+    let isProvisional = false;
+
     if (s.type === 'trienal') {
       const g10 = s.grade10 ?? 0;
       const g11 = s.grade11 ?? 0;
-      const g12 = getEffectiveGrade12(s);
-      raw = (g10 + g11 + g12) / 3;
+      const g12 = get12thGradeFromTests(s);
+
+      if (g12 !== null) {
+        // Officially has 12th year tests
+        raw = (g10 + g11 + g12) / 3;
+      } else {
+        // Provisional average based on 10th and 11th year until tests are added
+        raw = (g10 + g11) / 2;
+        isProvisional = true;
+      }
     } else if (s.type === 'bienal') {
       const g10 = s.grade10 ?? 0;
       const g11 = s.grade11 ?? 0;
       raw = (g10 + g11) / 2;
     } else {
-      // Anual
-      raw = getEffectiveGrade12(s);
+      // Anual (12º ano apenas)
+      const g12 = get12thGradeFromTests(s);
+      if (g12 !== null) {
+        raw = g12;
+      } else {
+        // No tests yet for this 12th year option
+        return { value: null, isProvisional: true };
+      }
     }
 
+    if (raw === null) return { value: null, isProvisional };
+
     if (roundingMode === 'official') {
-      return Math.round(raw);
+      return { value: Math.round(raw), isProvisional };
     }
-    return Number(raw.toFixed(1));
+    return { value: Number(raw.toFixed(1)), isProvisional };
   };
 
   // Helper: compute CFD (Classificação Final da Disciplina)
-  const computeCFD = (s: TableSubject): number => {
-    const ci = computeCI(s);
+  const computeCFD = (s: TableSubject): number | null => {
+    const { value: ci } = computeCI(s);
+    if (ci === null) return null;
+
     if (!s.enConta || s.examGrade === null || s.examGrade === undefined) {
       return ci;
     }
@@ -338,10 +392,13 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
   };
 
   // Overall Secondary Average (CFC - Classificação Final de Curso)
-  const cfdValues = subjects.map((s) => computeCFD(s));
+  const validCFDs = subjects
+    .map((s) => computeCFD(s))
+    .filter((cfd): cfd is number => cfd !== null);
+
   const finalCFC =
-    cfdValues.length > 0
-      ? Number((cfdValues.reduce((acc, curr) => acc + curr, 0) / cfdValues.length).toFixed(2))
+    validCFDs.length > 0
+      ? Number((validCFDs.reduce((acc, curr) => acc + curr, 0) / validCFDs.length).toFixed(2))
       : 0;
 
   const finalCFCPoints200 = Number((finalCFC * 10).toFixed(1));
@@ -422,12 +479,10 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
       type: newSubjType,
       grade10: newSubjType === 'anual' ? null : 15,
       grade11: newSubjType === 'anual' ? null : 15,
-      grade12: newSubjType === 'bienal' ? null : 15,
       enConta: false,
       examGrade: null,
       acessoSuperior: false,
       hasNationalExam: true,
-      useAppTests: newSubjType !== 'bienal',
     };
     setSubjects((prev) => [...prev, newSubj]);
     setNewSubjName('');
@@ -441,6 +496,20 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 
   return (
     <div className="w-full pb-28 pt-1 space-y-4 animate-fade-in">
+      {/* Top Notification: 12th year grades are strictly linked to tests */}
+      <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs flex items-center justify-between gap-3 text-blue-300">
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-blue-400 shrink-0" />
+          <span>
+            <strong>Notas do 12.º Ano:</strong> São calculadas <u>exclusivamente</u> através dos
+            testes registados na app. Para o 10.º e 11.º ano, introduz as tuas notas finais!
+          </span>
+        </div>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 whitespace-nowrap">
+          100% Automático
+        </span>
+      </div>
+
       {/* Top Bar with Course Picker & Tools */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-2">
@@ -452,7 +521,7 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
               <span>Cálculo da Média do Secundário & Acesso</span>
             </h2>
             <p className="text-[11px] text-zinc-400">
-              Grelha de cálculo por disciplinas com Exames Nacionais e Candidatura
+              Grelha oficial com Exames Nacionais e Candidatura ao Ensino Superior
             </p>
           </div>
         </div>
@@ -536,7 +605,7 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
               Média Secundário (CFC)
             </span>
             <span className="text-[10px] font-semibold text-zinc-400">
-              {subjects.length} disciplinas
+              {validCFDs.length} avaliadas
             </span>
           </div>
 
@@ -644,13 +713,13 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
         </div>
       </div>
 
-      {/* Main Calculation Table (Replicating the exact user reference format) */}
+      {/* Main Calculation Table */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-1.5 text-xs text-zinc-400">
             <Info className="w-3.5 h-3.5 text-blue-400" />
             <span className="hidden sm:inline">
-              Preenche as tuas classificações por ano e os exames nacionais realizados:
+              Preenche as notas do 10º e 11º ano. As do 12º ano sincronizam automaticamente com os teus testes:
             </span>
             <span className="sm:hidden text-[11px] text-blue-400 font-medium">
               Desliza horizontalmente 👉 para ver todas as colunas
@@ -669,15 +738,28 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 
         {/* Scrollable Container with Sticky First Column for mobile / iPhone */}
         <div className="overflow-x-auto rounded-3xl border border-white/10 bg-zinc-900/90 backdrop-blur-xl shadow-ios-card scrollbar-thin">
-          <table className="w-full min-w-[780px] text-xs text-left border-collapse">
+          <table className="w-full min-w-[820px] text-xs text-left border-collapse">
             <thead>
               <tr className="border-b border-white/10 text-[11px] font-bold text-zinc-300 uppercase tracking-wider bg-zinc-950/50">
-                <th className="sticky left-0 bg-zinc-950/90 backdrop-blur-md z-20 px-3 py-3.5 border-r border-white/10 min-w-[150px]">
+                <th className="sticky left-0 bg-zinc-950/95 backdrop-blur-md z-20 px-3 py-3.5 border-r border-white/10 min-w-[150px]">
                   Disciplina
                 </th>
                 <th className="px-2 py-3.5 text-center min-w-[65px]">10.º Ano</th>
                 <th className="px-2 py-3.5 text-center min-w-[65px]">11.º Ano</th>
-                <th className="px-2 py-3.5 text-center min-w-[75px]">12.º Ano</th>
+
+                {/* 12.º Ano Header: Clearly marked as purely from tests */}
+                <th className="px-2 py-3.5 text-center min-w-[110px] bg-blue-500/10 text-blue-400">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>12.º Ano</span>
+                    <span className="text-[8px] px-1 py-0.2 rounded bg-blue-500/30 text-blue-200 font-black tracking-normal uppercase">
+                      Testes
+                    </span>
+                  </div>
+                  <div className="text-[9px] font-normal text-blue-300/70 lowercase">
+                    calculado da app
+                  </div>
+                </th>
+
                 <th className="px-2 py-3.5 text-center min-w-[55px] text-blue-400 bg-blue-500/5">
                   CI
                 </th>
@@ -703,10 +785,12 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                 const isBienal = s.type === 'bienal';
                 const isAnual = s.type === 'anual';
 
-                const ci = computeCI(s);
+                const stat12 = getSubjectStat(s.name);
+                const has12Tests = stat12 && stat12.count > 0;
+                const grade12FromTests = get12thGradeFromTests(s);
+
+                const { value: ci, isProvisional } = computeCI(s);
                 const cfd = computeCFD(s);
-                const hasAppTests = s.useAppTests && !!subjectStats[s.name];
-                const liveGrade12 = getEffectiveGrade12(s);
 
                 return (
                   <tr key={s.id} className="hover:bg-white/[0.02] transition-colors">
@@ -730,11 +814,11 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                       </div>
                     </td>
 
-                    {/* Column 2: 10.º Ano */}
+                    {/* Column 2: 10.º Ano (Manual input) */}
                     <td className="px-2 py-2 text-center">
                       {isAnual ? (
                         <div
-                          className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none"
+                          className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none text-xs"
                           title="Não aplicável ao 10º ano"
                         >
                           —
@@ -756,11 +840,11 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                       )}
                     </td>
 
-                    {/* Column 3: 11.º Ano */}
+                    {/* Column 3: 11.º Ano (Manual input) */}
                     <td className="px-2 py-2 text-center">
                       {isAnual ? (
                         <div
-                          className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none"
+                          className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none text-xs"
                           title="Não aplicável ao 11º ano"
                         >
                           —
@@ -782,63 +866,61 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                       )}
                     </td>
 
-                    {/* Column 4: 12.º Ano */}
-                    <td className="px-2 py-2 text-center">
+                    {/* Column 4: 12.º Ano (STRICTLY FROM TESTS IN THE APP - NO MANUAL INPUT) */}
+                    <td className="px-2 py-2 text-center bg-blue-500/5">
                       {isBienal ? (
                         <div
-                          className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none"
+                          className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none text-xs"
                           title="Disciplina bienal conclui no 11º ano"
                         >
                           —
                         </div>
-                      ) : s.useAppTests && hasAppTests ? (
+                      ) : has12Tests && grade12FromTests !== null ? (
+                        // Display live calculated test average
                         <div
-                          onClick={() => {
-                            triggerHaptic('light');
-                            updateSubject(s.id, { useAppTests: false });
-                          }}
-                          title="Clique para alternar para nota manual"
-                          className="h-8 w-16 mx-auto bg-blue-600/15 border border-blue-500/30 rounded-xl flex items-center justify-center gap-1 font-bold text-blue-400 text-xs cursor-pointer hover:bg-blue-600/25"
+                          className="h-8 px-2 mx-auto rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center gap-1 font-black text-blue-400 text-xs shadow-sm"
+                          title={`Média calculada de ${stat12.count} teste(s) registado(s) em ${s.name}`}
                         >
-                          <span>{liveGrade12.toFixed(1)}</span>
-                          <RefreshCw className="w-2.5 h-2.5 opacity-70" />
+                          <span>{grade12FromTests.toFixed(1)}</span>
+                          <span className="text-[9px] text-blue-300/80 font-normal">
+                            ({stat12.count}T)
+                          </span>
                         </div>
                       ) : (
-                        <div className="relative inline-block">
-                          <input
-                            type="number"
-                            min="0"
-                            max="20"
-                            step="0.5"
-                            value={s.grade12 ?? ''}
-                            onChange={(e) =>
-                              updateSubject(s.id, {
-                                grade12: e.target.value === '' ? null : Number(e.target.value),
-                              })
+                        // No tests yet: prompt user to add a test for this subject
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            if (onNavigateToNewTest) {
+                              onNavigateToNewTest(s.name);
                             }
-                            className="w-14 h-8 bg-zinc-950 border border-white/10 rounded-xl px-1 text-center font-bold text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                          {subjectStats[s.name] && !s.useAppTests && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                triggerHaptic('light');
-                                updateSubject(s.id, { useAppTests: true });
-                              }}
-                              title="Puxar nota média dos testes da app"
-                              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px]"
-                            >
-                              ⚡
-                            </button>
-                          )}
-                        </div>
+                          }}
+                          className="h-8 px-2 mx-auto rounded-xl bg-zinc-950 border border-dashed border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-1 text-[10px] font-bold w-full max-w-[105px] group"
+                          title="Não existem testes registados. Clica para adicionar um teste desta disciplina!"
+                        >
+                          <Plus className="w-2.5 h-2.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                          <span>Adicionar teste</span>
+                        </button>
                       )}
                     </td>
 
                     {/* Column 5: CI (Classificação Interna) */}
                     <td className="px-2 py-2 text-center bg-blue-500/5">
-                      <div className="h-8 px-2 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center font-bold text-blue-300 text-xs">
-                        {ci}
+                      <div
+                        className="h-8 px-2 rounded-xl bg-blue-500/10 border border-blue-500/20 flex flex-col items-center justify-center font-bold text-blue-300 text-xs"
+                        title={
+                          isProvisional
+                            ? 'Nota provisória (calculada sem testes de 12º ano)'
+                            : 'Classificação Interna Oficial'
+                        }
+                      >
+                        <span>{ci !== null ? ci : '—'}</span>
+                        {isProvisional && isTrienal && (
+                          <span className="text-[8px] text-amber-400/80 font-normal leading-none">
+                            provisória
+                          </span>
+                        )}
                       </div>
                     </td>
 
@@ -873,7 +955,7 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                     {/* Column 7: Notas Exames Nacionais (0 a 200 pontos) */}
                     <td className="px-2 py-2 text-center">
                       {!s.hasNationalExam ? (
-                        <div className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none">
+                        <div className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none text-xs">
                           —
                         </div>
                       ) : (
@@ -902,14 +984,14 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                     {/* Column 8: CFD (Classificação Final da Disciplina) */}
                     <td className="px-2 py-2 text-center bg-blue-500/5">
                       <div className="h-8 px-2 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-black text-white text-xs">
-                        {cfd}
+                        {cfd !== null ? cfd : '—'}
                       </div>
                     </td>
 
                     {/* Column 9: Acesso ao Ensino Superior (Prova de Ingresso) */}
                     <td className="px-2 py-2 text-center">
                       {!s.hasNationalExam ? (
-                        <div className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none">
+                        <div className="h-8 rounded-xl bg-zinc-800/40 border border-dashed border-white/5 flex items-center justify-center text-zinc-600 select-none text-xs">
                           —
                         </div>
                       ) : (
