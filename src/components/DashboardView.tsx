@@ -4,6 +4,7 @@ import {
   calculateSubjectStats,
   getClassificationBadgeStyle,
 } from '../utils/gradeUtils';
+import { EvolutionChart } from './EvolutionChart';
 import {
   Award,
   BookOpen,
@@ -13,6 +14,7 @@ import {
   PlusCircle,
   Clock,
   ArrowUpRight,
+  Printer,
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -21,6 +23,7 @@ interface DashboardViewProps {
   onNewTestClick: () => void;
   onOpenSimulator: () => void;
   onSelectSubject: (subjectName: string) => void;
+  onOpenReport?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -29,6 +32,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNewTestClick,
   onOpenSimulator,
   onSelectSubject,
+  onOpenReport,
 }) => {
   const subjectStats = calculateSubjectStats(tests);
   const subjectsList = Object.values(subjectStats);
@@ -119,26 +123,46 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Simulator Shortcut Banner */}
-      <div
-        onClick={onOpenSimulator}
-        className="cursor-pointer p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/20 hover:border-amber-500/40 flex items-center justify-between ios-pressable transition-all"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-            <Sparkles className="w-5 h-5" />
+      {/* Evolution Chart (when >= 2 tests exist) */}
+      {totalTests >= 2 && <EvolutionChart tests={tests} />}
+
+      {/* Action Banners Grid */}
+      <div className="grid grid-cols-2 gap-2">
+        {/* Simulator Shortcut */}
+        <div
+          onClick={onOpenSimulator}
+          className="cursor-pointer p-3 rounded-2xl bg-gradient-to-br from-amber-500/10 to-zinc-900 border border-amber-500/20 hover:border-amber-500/40 flex flex-col justify-between ios-pressable transition-all"
+        >
+          <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-2">
+            <Sparkles className="w-4 h-4" />
           </div>
           <div>
             <h4 className="text-xs font-bold text-white flex items-center gap-1">
-              Simulador de Metas
-              <ArrowUpRight className="w-3.5 h-3.5 text-amber-400" />
+              Simulador
+              <ArrowUpRight className="w-3 h-3 text-amber-400" />
             </h4>
-            <p className="text-[11px] text-zinc-400">
-              Calcula quanto precisas de tirar no próximo teste para a média desejada.
-            </p>
+            <p className="text-[10px] text-zinc-400 mt-0.5">Metas futuras</p>
           </div>
         </div>
-        <ChevronRight className="w-4 h-4 text-zinc-500" />
+
+        {/* Print / PDF Report Shortcut */}
+        {onOpenReport && totalTests > 0 && (
+          <div
+            onClick={onOpenReport}
+            className="cursor-pointer p-3 rounded-2xl bg-gradient-to-br from-blue-500/10 to-zinc-900 border border-blue-500/20 hover:border-blue-500/40 flex flex-col justify-between ios-pressable transition-all"
+          >
+            <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center mb-2">
+              <Printer className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white flex items-center gap-1">
+                Pauta PDF
+                <ArrowUpRight className="w-3 h-3 text-blue-400" />
+              </h4>
+              <p className="text-[10px] text-zinc-400 mt-0.5">Exportar boletim</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Disciplinas em Destaque */}

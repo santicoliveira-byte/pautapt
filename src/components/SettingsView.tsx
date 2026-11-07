@@ -6,6 +6,13 @@ import {
   clearAllTests,
 } from '../utils/storage';
 import {
+  ACCENT_COLORS,
+  getStoredAccentColor,
+  applyAccentColor,
+  AccentColor,
+} from '../utils/theme';
+import { triggerHaptic } from '../utils/haptics';
+import {
   Download,
   Upload,
   Trash2,
@@ -13,6 +20,7 @@ import {
   Info,
   Check,
   Award,
+  Palette,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -29,6 +37,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [currentAccent, setCurrentAccent] = useState<AccentColor>(() => getStoredAccentColor());
 
   const handleExport = () => {
     const jsonStr = exportDataAsJSON(tests);
@@ -70,8 +79,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div>
         <h2 className="text-xl font-bold tracking-tight text-white">Opções & Definições</h2>
         <p className="text-xs text-zinc-400">
-          Cópia de segurança, guia da escala portuguesa e instalação móvel
+          Personalização iOS, cópia de segurança e escala de avaliação
         </p>
+      </div>
+
+      {/* iOS Theme Accent Color */}
+      <div className="bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-ios-card space-y-3">
+        <div className="flex items-center gap-2">
+          <Palette className="w-4 h-4 text-purple-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+            Cor de Acento do Sistema iOS
+          </h3>
+        </div>
+        <p className="text-xs text-zinc-400">
+          Personaliza os realces, seletores e reflexos de luz da aplicação.
+        </p>
+
+        <div className="grid grid-cols-5 gap-2 pt-1">
+          {ACCENT_COLORS.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                triggerHaptic('medium');
+                setCurrentAccent(c);
+                applyAccentColor(c);
+              }}
+              className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl border transition-all ios-pressable ${
+                currentAccent.id === c.id
+                  ? 'bg-zinc-800 border-white/40 ring-2 ring-white/20'
+                  : 'bg-zinc-950/60 border-white/5 hover:bg-zinc-800/50'
+              }`}
+            >
+              <span
+                className="w-6 h-6 rounded-full shadow-md transition-transform"
+                style={{ backgroundColor: c.hex, boxShadow: `0 0 10px ${c.glow}` }}
+              />
+              <span className="text-[10px] text-zinc-400 truncate max-w-[50px]">
+                {c.name.split(' ')[0]}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* iOS App installation tips */}

@@ -11,6 +11,10 @@ import {
   getClassification,
 } from '../utils/gradeUtils';
 import { GradeDisplayCard } from './GradeDisplayCard';
+import { IAVEPresetsModal, IAVEPreset } from './IAVEPresetsModal';
+import { NumpadModal } from './NumpadModal';
+import { triggerHaptic } from '../utils/haptics';
+import { triggerCelebration } from '../utils/confetti';
 import {
   Plus,
   Trash2,
@@ -22,6 +26,8 @@ import {
   ListPlus,
   Hash,
   RotateCcw,
+  Sparkles,
+  Calculator,
 } from 'lucide-react';
 
 interface TestWizardProps {
@@ -68,6 +74,37 @@ export const TestWizard: React.FC<TestWizardProps> = ({
 
   const [notes, setNotes] = useState<string>(initialTest?.notes || '');
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  // Modals for IAVE models & iOS Numpad
+  const [isIAVEModalOpen, setIsIAVEModalOpen] = useState(false);
+  const [numpadConfig, setNumpadConfig] = useState<{
+    isOpen: boolean;
+    domainId?: string;
+    isDirect?: boolean;
+    title: string;
+    maxScore: number;
+    initialValue: number;
+  }>({
+    isOpen: false,
+    title: '',
+    maxScore: 200,
+    initialValue: 0,
+  });
+
+  const handleSelectIAVEPreset = (preset: IAVEPreset) => {
+    triggerHaptic('medium');
+    setSubject(preset.name);
+    setTotalScale(preset.totalScale);
+    setMode('domains');
+    setDomains(
+      preset.groups.map((g, idx) => ({
+        id: `iave-${idx}`,
+        name: g.name,
+        maxScore: g.maxScore,
+        obtainedScore: 0,
+      }))
+    );
+  };
 
   // Computed totals
   const currentTotalMaxPoints =
@@ -207,6 +244,10 @@ export const TestWizard: React.FC<TestWizardProps> = ({
     };
 
     onSaveTest(newTest);
+    triggerHaptic('success');
+    if (newTest.grade20 >= 17.5) {
+      triggerCelebration();
+    }
     setSaveSuccess(true);
     setTimeout(() => {
       setSaveSuccess(false);
@@ -253,9 +294,19 @@ export const TestWizard: React.FC<TestWizardProps> = ({
         <div className="space-y-5 animate-fade-in">
           {/* Card: Disciplina */}
           <div className="bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-ios-card">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2.5">
-              Disciplina / Módulo
-            </label>
+            <div className="flex items-center justify-between mb-2.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                Disciplina / Módulo
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsIAVEModalOpen(true)}
+                className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full ios-pressable"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>Modelos IAVE</span>
+              </button>
+            </div>
 
             {/* Quick chips for common subjects in Portugal */}
             <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto no-scrollbar py-0.5">
@@ -615,6 +666,22 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                     className="w-36 text-center text-4xl font-black bg-zinc-950 border-2 border-blue-500/50 rounded-3xl py-3 px-2 text-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20"
                   />
                   <span className="text-xl font-bold text-zinc-500">/ {totalScale} pts</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNumpadConfig({
+                        isOpen: true,
+                        isDirect: true,
+                        title: `Cotação de ${finalSubjectName}`,
+                        maxScore: totalScale,
+                        initialValue: directObtained,
+                      })
+                    }
+                    title="Abrir teclado numérico tátil"
+                    className="p-2.5 rounded-2xl bg-zinc-800 text-zinc-300 hover:text-white border border-white/5 active:scale-95 transition-all"
+                  >
+                    <Calculator className="w-5 h-5" />
+                  </button>
                 </div>
 
                 {/* Slider for smooth dragging */}
@@ -673,6 +740,22 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                             }
                             className="w-16 bg-zinc-900 border border-white/10 rounded-xl px-2 py-1 text-right text-sm font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNumpadConfig({
+                                isOpen: true,
+                                domainId: item.id,
+                                title: item.name || `Item ${index + 1}`,
+                                maxScore: item.maxScore,
+                                initialValue: item.obtainedScore,
+                              })
+                            }
+                            className="p-1.5 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
+                            title="Abrir teclado numérico"
+                          >
+                            <Calculator className="w-3.5 h-3.5" />
+                          </button>
                           <span className="text-zinc-500 font-medium">/ {item.maxScore}</span>
                         </div>
                       </div>
@@ -750,6 +833,29 @@ export const TestWizard: React.FC<TestWizardProps> = ({
           </div>
         </div>
       )}
+
+      {/* IAVE Exam Presets Modal */}
+      <IAVEPresetsModal
+        isOpen={isIAVEModalOpen}
+        onClose={() => setIsIAVEModalOpen(false)}
+        onSelectPreset={handleSelectIAVEPreset}
+      />
+
+      {/* Tactile iOS Numpad Modal */}
+      <NumpadModal
+        isOpen={numpadConfig.isOpen}
+        title={numpadConfig.title}
+        maxScore={numpadConfig.maxScore}
+        initialValue={numpadConfig.initialValue}
+        onClose={() => setNumpadConfig((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={(val) => {
+          if (numpadConfig.isDirect) {
+            setDirectObtained(val);
+          } else if (numpadConfig.domainId) {
+            handleUpdateDomain(numpadConfig.domainId, 'obtainedScore', val);
+          }
+        }}
+      />
     </div>
   );
 };

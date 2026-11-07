@@ -6,12 +6,14 @@ import {
   PORTUGAL_DEFAULT_SUBJECTS,
   SCALE_PRESETS,
 } from '../utils/gradeUtils';
+import { HigherEducationSimulator } from './HigherEducationSimulator';
 import {
   Target,
   Sparkles,
   TrendingUp,
   AlertCircle,
   CheckCircle,
+  GraduationCap,
 } from 'lucide-react';
 
 interface SimulatorViewProps {
@@ -24,6 +26,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   tests,
   initialSubject,
 }) => {
+  const [simulatorTab, setSimulatorTab] = useState<'test' | 'higher-ed'>('test');
   const subjectStats = calculateSubjectStats(tests);
   const existingSubjectNames = Object.keys(subjectStats);
 
@@ -103,8 +106,53 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   const status = getFeasibilityStatus();
   const StatusIcon = status.icon;
 
+  if (simulatorTab === 'higher-ed') {
+    return (
+      <div className="space-y-4">
+        {/* Segmented Switcher */}
+        <div className="max-w-md mx-auto px-4 pt-2">
+          <div className="grid grid-cols-2 p-1 bg-zinc-950 rounded-2xl border border-white/5">
+            <button
+              onClick={() => setSimulatorTab('test')}
+              className="py-2 text-xs font-semibold rounded-xl text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5"
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span>Próximo Teste</span>
+            </button>
+            <button
+              onClick={() => setSimulatorTab('higher-ed')}
+              className="py-2 text-xs font-semibold rounded-xl bg-zinc-800 text-white shadow-sm transition-all flex items-center justify-center gap-1.5"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
+              <span>Ensino Superior</span>
+            </button>
+          </div>
+        </div>
+
+        <HigherEducationSimulator tests={tests} />
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-md mx-auto pb-28 pt-2 px-4 space-y-5 animate-fade-in">
+    <div className="max-w-md mx-auto pb-28 pt-2 px-4 space-y-4 animate-fade-in">
+      {/* Segmented Switcher */}
+      <div className="grid grid-cols-2 p-1 bg-zinc-950 rounded-2xl border border-white/5">
+        <button
+          onClick={() => setSimulatorTab('test')}
+          className="py-2 text-xs font-semibold rounded-xl bg-zinc-800 text-white shadow-sm transition-all flex items-center justify-center gap-1.5"
+        >
+          <Target className="w-3.5 h-3.5 text-amber-400" />
+          <span>Próximo Teste</span>
+        </button>
+        <button
+          onClick={() => setSimulatorTab('higher-ed')}
+          className="py-2 text-xs font-semibold rounded-xl text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5"
+        >
+          <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
+          <span>Ensino Superior</span>
+        </button>
+      </div>
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">

@@ -9,6 +9,8 @@ import { SubjectsView } from './components/SubjectsView';
 import { SimulatorView } from './components/SimulatorView';
 import { SettingsView } from './components/SettingsView';
 import { TestDetailModal } from './components/TestDetailModal';
+import { ReportModal } from './components/ReportModal';
+import { getStoredAccentColor, applyAccentColor } from './utils/theme';
 
 export const App: React.FC = () => {
   const [tests, setTests] = useState<SchoolTest[]>(() => loadSavedTests());
@@ -16,6 +18,12 @@ export const App: React.FC = () => {
   const [selectedTestModal, setSelectedTestModal] = useState<SchoolTest | null>(null);
   const [editingTest, setEditingTest] = useState<SchoolTest | null>(null);
   const [simulatorSubject, setSimulatorSubject] = useState<string>('');
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+
+  // Apply stored accent color on load
+  useEffect(() => {
+    applyAccentColor(getStoredAccentColor());
+  }, []);
 
   // Persist to localStorage whenever tests change
   useEffect(() => {
@@ -112,6 +120,7 @@ export const App: React.FC = () => {
               setSimulatorSubject(subj);
               setActiveTab('subjects');
             }}
+            onOpenReport={() => setIsReportModalOpen(true)}
           />
         )}
 
@@ -170,6 +179,13 @@ export const App: React.FC = () => {
         onClose={() => setSelectedTestModal(null)}
         onDelete={handleDeleteTest}
         onEdit={handleEditTest}
+      />
+
+      {/* Printable Report / Pauta Escolar Modal */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        tests={tests}
       />
     </div>
   );
