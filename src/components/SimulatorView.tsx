@@ -7,6 +7,8 @@ import {
   SCALE_PRESETS,
 } from '../utils/gradeUtils';
 import { HigherEducationSimulator } from './HigherEducationSimulator';
+import { SecondaryAverageCalculator } from './SecondaryAverageCalculator';
+import { triggerHaptic } from '../utils/haptics';
 import {
   Target,
   Sparkles,
@@ -14,19 +16,22 @@ import {
   AlertCircle,
   CheckCircle,
   GraduationCap,
+  Award,
 } from 'lucide-react';
 
 interface SimulatorViewProps {
   tests: SchoolTest[];
   initialSubject?: string;
+  initialTab?: 'test' | 'secondary' | 'higher-ed';
   onNavigateToCalculatorWithParams?: (subject: string, targetScore: number) => void;
 }
 
 export const SimulatorView: React.FC<SimulatorViewProps> = ({
   tests,
   initialSubject,
+  initialTab = 'secondary',
 }) => {
-  const [simulatorTab, setSimulatorTab] = useState<'test' | 'higher-ed'>('test');
+  const [simulatorTab, setSimulatorTab] = useState<'test' | 'secondary' | 'higher-ed'>(initialTab);
   const subjectStats = calculateSubjectStats(tests);
   const existingSubjectNames = Object.keys(subjectStats);
 
@@ -106,29 +111,72 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   const status = getFeasibilityStatus();
   const StatusIcon = status.icon;
 
+  // Segmented Tabs Header Component
+  const renderSegmentedTabs = () => (
+    <div className="grid grid-cols-3 p-1 bg-zinc-950 rounded-2xl border border-white/5 mb-3">
+      <button
+        type="button"
+        onClick={() => {
+          triggerHaptic('light');
+          setSimulatorTab('secondary');
+        }}
+        className={`py-2 px-1 text-[11px] font-semibold rounded-xl transition-all flex items-center justify-center gap-1 ${
+          simulatorTab === 'secondary'
+            ? 'bg-zinc-800 text-white shadow-sm font-bold'
+            : 'text-zinc-400 hover:text-white'
+        }`}
+      >
+        <GraduationCap className="w-3.5 h-3.5 text-blue-400" />
+        <span className="truncate">Secundário</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          triggerHaptic('light');
+          setSimulatorTab('test');
+        }}
+        className={`py-2 px-1 text-[11px] font-semibold rounded-xl transition-all flex items-center justify-center gap-1 ${
+          simulatorTab === 'test'
+            ? 'bg-zinc-800 text-white shadow-sm font-bold'
+            : 'text-zinc-400 hover:text-white'
+        }`}
+      >
+        <Target className="w-3.5 h-3.5 text-amber-400" />
+        <span className="truncate">Próximo Teste</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          triggerHaptic('light');
+          setSimulatorTab('higher-ed');
+        }}
+        className={`py-2 px-1 text-[11px] font-semibold rounded-xl transition-all flex items-center justify-center gap-1 ${
+          simulatorTab === 'higher-ed'
+            ? 'bg-zinc-800 text-white shadow-sm font-bold'
+            : 'text-zinc-400 hover:text-white'
+        }`}
+      >
+        <Award className="w-3.5 h-3.5 text-purple-400" />
+        <span className="truncate">CNAES</span>
+      </button>
+    </div>
+  );
+
+  if (simulatorTab === 'secondary') {
+    return (
+      <div className="max-w-md mx-auto pt-2 px-4 space-y-3">
+        {renderSegmentedTabs()}
+        <SecondaryAverageCalculator tests={tests} />
+      </div>
+    );
+  }
+
   if (simulatorTab === 'higher-ed') {
     return (
-      <div className="space-y-4">
-        {/* Segmented Switcher */}
-        <div className="max-w-md mx-auto px-4 pt-2">
-          <div className="grid grid-cols-2 p-1 bg-zinc-950 rounded-2xl border border-white/5">
-            <button
-              onClick={() => setSimulatorTab('test')}
-              className="py-2 text-xs font-semibold rounded-xl text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5"
-            >
-              <Target className="w-3.5 h-3.5" />
-              <span>Próximo Teste</span>
-            </button>
-            <button
-              onClick={() => setSimulatorTab('higher-ed')}
-              className="py-2 text-xs font-semibold rounded-xl bg-zinc-800 text-white shadow-sm transition-all flex items-center justify-center gap-1.5"
-            >
-              <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
-              <span>Ensino Superior</span>
-            </button>
-          </div>
-        </div>
-
+      <div className="max-w-md mx-auto pt-2 px-4 space-y-3">
+        {renderSegmentedTabs()}
         <HigherEducationSimulator tests={tests} />
       </div>
     );
@@ -136,23 +184,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
 
   return (
     <div className="max-w-md mx-auto pb-28 pt-2 px-4 space-y-4 animate-fade-in">
-      {/* Segmented Switcher */}
-      <div className="grid grid-cols-2 p-1 bg-zinc-950 rounded-2xl border border-white/5">
-        <button
-          onClick={() => setSimulatorTab('test')}
-          className="py-2 text-xs font-semibold rounded-xl bg-zinc-800 text-white shadow-sm transition-all flex items-center justify-center gap-1.5"
-        >
-          <Target className="w-3.5 h-3.5 text-amber-400" />
-          <span>Próximo Teste</span>
-        </button>
-        <button
-          onClick={() => setSimulatorTab('higher-ed')}
-          className="py-2 text-xs font-semibold rounded-xl text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5"
-        >
-          <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
-          <span>Ensino Superior</span>
-        </button>
-      </div>
+      {renderSegmentedTabs()}
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">

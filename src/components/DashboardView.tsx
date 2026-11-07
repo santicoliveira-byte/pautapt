@@ -15,6 +15,7 @@ import {
   Clock,
   ArrowUpRight,
   Printer,
+  GraduationCap,
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -163,6 +164,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Secondary Average (10th + 11th + 12th) Banner */}
+      <div
+        onClick={onOpenSimulator}
+        className="cursor-pointer p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/15 via-zinc-900 to-zinc-950 border border-blue-500/25 hover:border-blue-500/40 flex items-center justify-between ios-pressable transition-all"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center">
+            <GraduationCap className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-white flex items-center gap-1">
+              Média do Secundário (10º + 11º + 12º)
+              <ArrowUpRight className="w-3.5 h-3.5 text-blue-400" />
+            </h4>
+            <p className="text-[11px] text-zinc-400">
+              Combina as notas do 10º e 11º com os testes do 12º em tempo real.
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-zinc-500" />
       </div>
 
       {/* Disciplinas em Destaque */}
