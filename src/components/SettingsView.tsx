@@ -7,8 +7,6 @@ import {
 } from '../utils/storage';
 import {
   ACCENT_COLORS,
-  getStoredAccentColor,
-  applyAccentColor,
   AccentColor,
 } from '../utils/theme';
 import { triggerHaptic } from '../utils/haptics';
@@ -27,17 +25,20 @@ interface SettingsViewProps {
   tests: SchoolTest[];
   onImportSuccess: (imported: SchoolTest[]) => void;
   onClearAll: () => void;
+  currentAccent: AccentColor;
+  onAccentChange: (accent: AccentColor) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   tests,
   onImportSuccess,
   onClearAll,
+  currentAccent,
+  onAccentChange,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
-  const [currentAccent, setCurrentAccent] = useState<AccentColor>(() => getStoredAccentColor());
 
   const handleExport = () => {
     const jsonStr = exportDataAsJSON(tests);
@@ -101,8 +102,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               key={c.id}
               onClick={() => {
                 triggerHaptic('medium');
-                setCurrentAccent(c);
-                applyAccentColor(c);
+                onAccentChange(c);
               }}
               className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl border transition-all ios-pressable ${
                 currentAccent.id === c.id

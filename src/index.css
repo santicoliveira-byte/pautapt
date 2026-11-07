@@ -4,8 +4,9 @@
 
 :root {
   color-scheme: dark;
+  --accent-rgb: 10 132 255;
   --accent-hex: #0A84FF;
-  --accent-glow: rgba(10, 132, 255, 0.35);
+  --accent-glow: rgba(10, 132, 255, 0.4);
   --accent-bg-light: rgba(10, 132, 255, 0.15);
 }
 

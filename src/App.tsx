@@ -10,7 +10,7 @@ import { SimulatorView } from './components/SimulatorView';
 import { SettingsView } from './components/SettingsView';
 import { TestDetailModal } from './components/TestDetailModal';
 import { ReportModal } from './components/ReportModal';
-import { getStoredAccentColor, applyAccentColor } from './utils/theme';
+import { getStoredAccentColor, applyAccentColor, AccentColor } from './utils/theme';
 
 export const App: React.FC = () => {
   const [tests, setTests] = useState<SchoolTest[]>(() => loadSavedTests());
@@ -19,11 +19,17 @@ export const App: React.FC = () => {
   const [editingTest, setEditingTest] = useState<SchoolTest | null>(null);
   const [simulatorSubject, setSimulatorSubject] = useState<string>('');
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [currentAccent, setCurrentAccent] = useState<AccentColor>(() => getStoredAccentColor());
+
+  const handleAccentChange = (accent: AccentColor) => {
+    setCurrentAccent(accent);
+    applyAccentColor(accent);
+  };
 
   // Apply stored accent color on load
   useEffect(() => {
-    applyAccentColor(getStoredAccentColor());
-  }, []);
+    applyAccentColor(currentAccent);
+  }, [currentAccent]);
 
   // Persist to localStorage whenever tests change
   useEffect(() => {
@@ -157,6 +163,8 @@ export const App: React.FC = () => {
             tests={tests}
             onImportSuccess={(imported) => setTests(imported)}
             onClearAll={() => setTests([])}
+            currentAccent={currentAccent}
+            onAccentChange={handleAccentChange}
           />
         )}
       </main>

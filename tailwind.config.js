@@ -8,6 +8,12 @@ export default {
   theme: {
     extend: {
       colors: {
+        blue: {
+          400: 'rgb(var(--accent-rgb, 10 132 255) / <alpha-value>)',
+          500: 'rgb(var(--accent-rgb, 10 132 255) / <alpha-value>)',
+          600: 'rgb(var(--accent-rgb, 10 132 255) / <alpha-value>)',
+          700: 'rgb(var(--accent-rgb, 10 132 255) / <alpha-value>)',
+        },
         ios: {
           bg: '#000000',
           surface: '#121214',
@@ -15,8 +21,8 @@ export default {
           cardHover: '#252528',
           border: 'rgba(255, 255, 255, 0.08)',
           borderSubtle: 'rgba(255, 255, 255, 0.05)',
-          blue: '#0A84FF',
-          blueHover: '#0071E3',
+          blue: 'rgb(var(--accent-rgb, 10 132 255) / <alpha-value>)',
+          blueHover: 'rgb(var(--accent-rgb, 10 132 255) / <alpha-value>)',
           green: '#30D158',
           red: '#FF453A',
           amber: '#FFD60A',
@@ -44,7 +50,7 @@ export default {
         'ios-glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
         'ios-card': '0 4px 20px -2px rgba(0, 0, 0, 0.4)',
         'ios-glow-green': '0 0 25px -5px rgba(48, 209, 88, 0.3)',
-        'ios-glow-blue': '0 0 25px -5px rgba(10, 132, 255, 0.3)',
+        'ios-glow-blue': '0 0 25px -4px var(--accent-glow, rgba(10, 132, 255, 0.35))',
         'ios-glow-red': '0 0 25px -5px rgba(255, 69, 58, 0.3)',
         'ios-glow-amber': '0 0 25px -5px rgba(255, 214, 10, 0.3)',
       },

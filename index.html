@@ -13,6 +13,23 @@
     <link rel="manifest" href="/manifest.json" />
     
     <title>PautaPT — Notas & Testes Escolares</title>
+    <script>
+      try {
+        var s = localStorage.getItem('pautapt_accent_color_v1');
+        var a = {
+          blue: { rgb: '10 132 255', hex: '#0A84FF', glow: 'rgba(10, 132, 255, 0.4)' },
+          purple: { rgb: '191 90 242', hex: '#BF5AF2', glow: 'rgba(191, 90, 242, 0.4)' },
+          emerald: { rgb: '48 209 88', hex: '#30D158', glow: 'rgba(48, 209, 88, 0.4)' },
+          orange: { rgb: '255 159 10', hex: '#FF9F0A', glow: 'rgba(255, 159, 10, 0.4)' },
+          pink: { rgb: '255 55 95', hex: '#FF375F', glow: 'rgba(255, 55, 95, 0.4)' }
+        }[s];
+        if (a) {
+          document.documentElement.style.setProperty('--accent-rgb', a.rgb);
+          document.documentElement.style.setProperty('--accent-hex', a.hex);
+          document.documentElement.style.setProperty('--accent-glow', a.glow);
+        }
+      } catch(e) {}
+    </script>
   </head>
   <body class="bg-black text-white antialiased selection:bg-ios-blue selection:text-white overflow-x-hidden min-h-screen">
     <div id="root"></div>

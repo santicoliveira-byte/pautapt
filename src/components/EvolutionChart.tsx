@@ -107,8 +107,8 @@ export const EvolutionChart: React.FC<EvolutionChartProps> = ({ tests, subjectFi
         >
           <defs>
             <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0A84FF" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#0A84FF" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="var(--accent-hex, #0A84FF)" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="var(--accent-hex, #0A84FF)" stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
@@ -159,7 +159,7 @@ export const EvolutionChart: React.FC<EvolutionChartProps> = ({ tests, subjectFi
           <path
             d={pathD}
             fill="none"
-            stroke="#0A84FF"
+            stroke="var(--accent-hex, #0A84FF)"
             strokeWidth="2.5"
             strokeLinecap="round"
           />
