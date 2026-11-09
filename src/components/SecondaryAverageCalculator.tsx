@@ -34,6 +34,7 @@ const STORAGE_KEY_TABLE = 'pautapt_secondary_table_v4';
 const STORAGE_KEY_COURSE = 'pautapt_secondary_course_v4';
 const STORAGE_KEY_WEIGHT_PRESET = 'pautapt_cnaes_weight_preset_v4';
 const STORAGE_KEY_ROUNDING = 'pautapt_rounding_mode_v4';
+const STORAGE_KEY_EXAM_WEIGHT = 'pautapt_exam_weight_v4';
 
 // Default Portuguese curriculum matching the official template
 const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
@@ -90,10 +91,10 @@ const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
   {
     name: 'Bienal 1',
     type: 'bienal',
-    grade10: 15,
-    grade11: 15,
+    grade10: 12,
+    grade11: 14,
     enConta: true,
-    examGrade: 150,
+    examGrade: 145,
     acessoSuperior: true, // Prova de Ingresso ativa
     hasNationalExam: true,
   },
@@ -283,6 +284,17 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
     }
   });
 
+  // Exam weight in CFD: 25% (Decreto-Lei n.º 62/2023 - regime atual oficial) vs 30% (regime anterior)
+  const [examWeight, setExamWeight] = useState<25 | 30>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_EXAM_WEIGHT);
+      if (saved === '30') return 30;
+      return 25;
+    } catch {
+      return 25;
+    }
+  });
+
   const [showCoursePicker, setShowCoursePicker] = useState<boolean>(false);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [newSubjName, setNewSubjName] = useState<string>('');
@@ -320,6 +332,14 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
       // ignore
     }
   }, [roundingMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_EXAM_WEIGHT, String(examWeight));
+    } catch {
+      // ignore
+    }
+  }, [examWeight]);
 
   // STRICT: 12th year grade is ONLY retrieved from tests in the app!
   const get12thGradeFromTests = (s: TableSubject): number | null => {
@@ -381,9 +401,15 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
       return ci;
     }
 
-    // Official formula: 70% Interna + 30% Exame Nacional (escala 0-20)
-    const exam20 = s.examGrade / 10;
-    const rawCFD = 0.7 * ci + 0.3 * exam20;
+    // Regra Oficial do Ensino Secundário em Portugal (Decreto-Lei n.º 62/2023):
+    // 1) A nota do Exame Nacional (escala de 0 a 200 pontos) arredonda primeiro às unidades na escala de 0 a 20 valores
+    // Exemplo: 145 pts -> 14.5 -> arredonda para 15 valores
+    const examUnits = Math.round(s.examGrade / 10);
+
+    // 2) Aplica-se a ponderação oficial de 25% Exame e 75% Interna (ou 30%/70% se selecionado)
+    // Exemplo: 0.75 * 13 + 0.25 * 15 = 9.75 + 3.75 = 13.5 -> arredonda para 14 valores!
+    const weight = examWeight / 100;
+    const rawCFD = (1 - weight) * ci + weight * examUnits;
 
     if (roundingMode === 'official') {
       return Math.round(rawCFD);
@@ -496,18 +522,25 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 
   return (
     <div className="w-full pb-28 pt-1 space-y-4 animate-fade-in">
-      {/* Top Notification: 12th year grades are strictly linked to tests */}
+      {/* Top Notification: 12th year grades are strictly linked to tests + Exam 25% rounding rule */}
       <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs flex items-center justify-between gap-3 text-blue-300">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-blue-400 shrink-0" />
           <span>
-            <strong>Notas do 12.º Ano:</strong> São calculadas <u>exclusivamente</u> através dos
-            testes registados na app. Para o 10.º e 11.º ano, introduz as tuas notas finais!
+            <strong>Fórmula Oficial da CFD (DL 62/2023):</strong> A nota do exame arredonda primeiro às unidades (ex: 145 pts $\to$ 15 val) e aplica-se <strong>{examWeight}% de exame + {100 - examWeight}% de interna</strong>. As notas do 12.º ano vêm exclusivamente dos testes!
           </span>
         </div>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 whitespace-nowrap">
-          100% Automático
-        </span>
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic('light');
+            setExamWeight(examWeight === 25 ? 30 : 25);
+          }}
+          title="Clique para alternar a ponderação do exame na CFD"
+          className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 whitespace-nowrap hover:bg-blue-500/30 transition-colors"
+        >
+          {examWeight}% Exame
+        </button>
       </div>
 
       {/* Top Bar with Course Picker & Tools */}
@@ -527,6 +560,19 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
         </div>
 
         <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              setExamWeight(examWeight === 25 ? 30 : 25);
+            }}
+            title="Ponderação do Exame na CFD: 25% (Decreto-Lei n.º 62/2023 - regime atual) ou 30% (regime anterior)"
+            className="text-[10px] font-semibold px-2 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white flex items-center gap-1 ios-pressable"
+          >
+            <span className="text-blue-400 font-bold">{examWeight}%</span>
+            <span>Exame</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -983,7 +1029,14 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 
                     {/* Column 8: CFD (Classificação Final da Disciplina) */}
                     <td className="px-2 py-2 text-center bg-blue-500/5">
-                      <div className="h-8 px-2 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-black text-white text-xs">
+                      <div
+                        className="h-8 px-2 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-black text-white text-xs cursor-default"
+                        title={
+                          s.enConta && s.examGrade !== null && ci !== null
+                            ? `${100 - examWeight}% Interna (${ci}) + ${examWeight}% Exame arredondado (${Math.round(s.examGrade / 10)}) = ${cfd}`
+                            : `CFD = CI = ${ci}`
+                        }
+                      >
                         {cfd !== null ? cfd : '—'}
                       </div>
                     </td>
