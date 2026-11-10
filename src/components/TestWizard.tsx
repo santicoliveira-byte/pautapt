@@ -267,6 +267,39 @@ export const TestWizard: React.FC<TestWizardProps> = ({
     if (newTest.grade20 >= 17.5) {
       triggerCelebration();
     }
+
+    // Sincroniza logo a disciplina anual na tabela da calculadora de secundário
+    try {
+      const isKnownAnnual = ANNUAL_12TH_SUBJECTS.some(
+        (a) => a.toLowerCase() === finalSubjectName.toLowerCase()
+      );
+      if (isKnownAnnual) {
+        const savedTable = localStorage.getItem('pautapt_secondary_table_v4');
+        if (savedTable) {
+          const parsed = JSON.parse(savedTable);
+          if (Array.isArray(parsed)) {
+            const alreadyInTable = parsed.some(
+              (s: any) => s.name.toLowerCase() === finalSubjectName.toLowerCase()
+            );
+            if (!alreadyInTable) {
+              const slot = parsed.find(
+                (s: any) =>
+                  s.type === 'anual' &&
+                  (s.name.toLowerCase().includes('opção') ||
+                    s.name.toLowerCase().includes('opcao'))
+              );
+              if (slot) {
+                slot.name = finalSubjectName;
+                localStorage.setItem('pautapt_secondary_table_v4', JSON.stringify(parsed));
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     setSaveSuccess(true);
     setTimeout(() => {
       setSaveSuccess(false);

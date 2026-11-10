@@ -224,6 +224,17 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
         'fisic',
         'quimic',
         'biolog',
+        'geolog',
+        'psicolog',
+        'sociolog',
+        'direito',
+        'antropolog',
+        'politica',
+        'artes',
+        'oficina',
+        'multimedia',
+        'materiais',
+        'informatica',
         'educacao',
         'filosof',
         'ingles',
@@ -358,6 +369,87 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
       // ignore
     }
   }, [examWeight]);
+
+  // AUTO-SYNC: Synchronize annual subjects immediately from the tests in the app!
+  useEffect(() => {
+    const testSubjectNames = Object.keys(subjectStats);
+    if (testSubjectNames.length === 0) return;
+
+    // Identify which test subjects are annual options
+    const nonAnnualTableNames = subjects
+      .filter((s) => s.type !== 'anual')
+      .map((s) => normalize(s.name));
+
+    const annualCandidates = testSubjectNames.filter((testName) => {
+      const normTest = normalize(testName);
+      const isKnownAnnual = ANNUAL_12TH_SUBJECTS.some(
+        (a) =>
+          normalize(a) === normTest ||
+          normTest.includes(normalize(a)) ||
+          normalize(a).includes(normTest)
+      );
+      if (isKnownAnnual) return true;
+
+      // Or custom subject that doesn't match any trienal or bienal
+      const matchesNonAnnual = nonAnnualTableNames.some(
+        (tName) => tName === normTest || tName.includes(normTest) || normTest.includes(tName)
+      );
+      return !matchesNonAnnual;
+    });
+
+    if (annualCandidates.length === 0) return;
+
+    setSubjects((prevSubjects) => {
+      let changed = false;
+      const annualIndices: number[] = [];
+      prevSubjects.forEach((s, idx) => {
+        if (s.type === 'anual') annualIndices.push(idx);
+      });
+
+      if (annualIndices.length === 0) return prevSubjects;
+
+      const newSubjects = [...prevSubjects];
+      const usedCandidates = new Set<string>();
+
+      // Check which candidates already match an existing annual row
+      annualIndices.forEach((idx) => {
+        const row = newSubjects[idx];
+        const match = annualCandidates.find((c) => {
+          const normC = normalize(c);
+          const normRow = normalize(row.name);
+          return normC === normRow || normC.includes(normRow) || normRow.includes(normC);
+        });
+        if (match) {
+          usedCandidates.add(match);
+        }
+      });
+
+      // For unassigned candidates, assign them to generic or empty annual slots
+      annualCandidates.forEach((candidate) => {
+        if (usedCandidates.has(candidate)) return;
+
+        const slotIdx = annualIndices.find((idx) => {
+          const row = newSubjects[idx];
+          const isGeneric =
+            row.name.toLowerCase().includes('opção') ||
+            row.name.toLowerCase().includes('opcao');
+          const hasTests = !!getSubjectStat(row.name);
+          return isGeneric || !hasTests;
+        });
+
+        if (slotIdx !== undefined) {
+          newSubjects[slotIdx] = {
+            ...newSubjects[slotIdx],
+            name: candidate,
+          };
+          usedCandidates.add(candidate);
+          changed = true;
+        }
+      });
+
+      return changed ? newSubjects : prevSubjects;
+    });
+  }, [tests]);
 
   // STRICT: 12th year grade is ONLY retrieved from tests in the app!
   const get12thGradeFromTests = (s: TableSubject): number | null => {
