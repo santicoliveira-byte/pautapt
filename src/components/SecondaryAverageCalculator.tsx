@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolTest, SubjectStats } from '../types';
-import { calculateSubjectStats } from '../utils/gradeUtils';
+import { calculateSubjectStats, ANNUAL_12TH_SUBJECTS } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
 import {
@@ -13,6 +13,8 @@ import {
   Award,
   Info,
   Check,
+  Edit2,
+  BookOpen,
 } from 'lucide-react';
 
 export type SubjectType = 'trienal' | 'bienal' | 'anual';
@@ -109,7 +111,7 @@ const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
     hasNationalExam: true,
   },
   {
-    name: 'Opção 1 (12.º ano)',
+    name: 'Química',
     type: 'anual',
     grade10: null,
     grade11: null,
@@ -119,7 +121,7 @@ const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
     hasNationalExam: true,
   },
   {
-    name: 'Opção 2 (12.º ano)',
+    name: 'Biologia',
     type: 'anual',
     grade10: null,
     grade11: null,
@@ -142,8 +144,8 @@ const COURSE_NAME_PRESETS: Record<
       4: { name: 'Matemática A' },
       5: { name: 'Físico-Química A' },
       6: { name: 'Biologia e Geologia' },
-      7: { name: 'Opção 12º (Química)' },
-      8: { name: 'Opção 12º (Biologia)' },
+      7: { name: 'Química' },
+      8: { name: 'Biologia' },
     },
   },
   cse: {
@@ -153,8 +155,8 @@ const COURSE_NAME_PRESETS: Record<
       4: { name: 'Matemática A' },
       5: { name: 'Economia A' },
       6: { name: 'Geografia A' },
-      7: { name: 'Opção 12º (Sociologia)' },
-      8: { name: 'Opção 12º (Psicologia B)' },
+      7: { name: 'Sociologia' },
+      8: { name: 'Psicologia B' },
     },
   },
   lh: {
@@ -164,8 +166,8 @@ const COURSE_NAME_PRESETS: Record<
       4: { name: 'História A' },
       5: { name: 'Geografia A' },
       6: { name: 'MACS / Literatura' },
-      7: { name: 'Opção 12º (Psicologia B)' },
-      8: { name: 'Opção 12º (Sociologia)' },
+      7: { name: 'Psicologia B' },
+      8: { name: 'Sociologia' },
     },
   },
   av: {
@@ -175,8 +177,8 @@ const COURSE_NAME_PRESETS: Record<
       4: { name: 'Desenho A' },
       5: { name: 'Geometria Descritiva A' },
       6: { name: 'História da Cultura e Artes' },
-      7: { name: 'Opção 12º (Oficina de Artes)' },
-      8: { name: 'Opção 12º (Materiais)' },
+      7: { name: 'Oficina de Artes' },
+      8: { name: 'Materiais e Tecnologias' },
     },
   },
 };
@@ -299,6 +301,22 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [newSubjName, setNewSubjName] = useState<string>('');
   const [newSubjType, setNewSubjType] = useState<SubjectType>('bienal');
+  const [editingAnnualSubject, setEditingAnnualSubject] = useState<TableSubject | null>(null);
+  const [customAnnualName, setCustomAnnualName] = useState<string>('');
+
+  const handleSelectAnnualOption = (
+    subjectId: string,
+    name: string,
+    createTestNow: boolean = false
+  ) => {
+    triggerHaptic('medium');
+    updateSubject(subjectId, { name });
+    setEditingAnnualSubject(null);
+    setCustomAnnualName('');
+    if (createTestNow && onNavigateToNewTest) {
+      onNavigateToNewTest(name);
+    }
+  };
 
   // Persistence
   useEffect(() => {
@@ -843,11 +861,21 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                     {/* Column 1: Disciplina (Sticky on left for mobile) */}
                     <td className="sticky left-0 bg-zinc-900/95 backdrop-blur-md z-10 px-3 py-2.5 border-r border-white/10 font-bold text-white">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="truncate max-w-[125px]" title={s.name}>
-                          {s.name}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('light');
+                            setEditingAnnualSubject(s);
+                            setCustomAnnualName(s.name);
+                          }}
+                          className="truncate max-w-[120px] text-left hover:text-blue-400 transition-colors flex items-center gap-1 group"
+                          title="Clica para escolher ou mudar o nome da disciplina"
+                        >
+                          <span className="truncate">{s.name}</span>
+                          <Edit2 className="w-2.5 h-2.5 text-zinc-600 group-hover:text-blue-400 shrink-0 opacity-70" />
+                        </button>
                         <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
+                          className={`text-[9px] px-1.5 py-0.2 rounded font-semibold shrink-0 ${
                             isTrienal
                               ? 'text-blue-400 bg-blue-500/10'
                               : isBienal
@@ -938,7 +966,13 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                           type="button"
                           onClick={() => {
                             triggerHaptic('light');
-                            if (onNavigateToNewTest) {
+                            if (
+                              isAnual &&
+                              (s.name.includes('Opção') || s.name.includes('opcao') || s.name.startsWith('Opção'))
+                            ) {
+                              setEditingAnnualSubject(s);
+                              setCustomAnnualName('');
+                            } else if (onNavigateToNewTest) {
                               onNavigateToNewTest(s.name);
                             }
                           }}
@@ -1127,6 +1161,111 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
             <Plus className="w-4 h-4" />
             <span>Adicionar à Tabela</span>
           </button>
+        </div>
+      )}
+
+      {/* Modal to configure / pick an Annual 12th year subject */}
+      {editingAnnualSubject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-sm rounded-3xl bg-zinc-900 border border-white/10 p-5 shadow-2xl space-y-4 animate-scale-in">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-emerald-400" />
+                  <span>Escolhe a Disciplina de 12.º Ano</span>
+                </h3>
+                <p className="text-[11px] text-zinc-400">
+                  Seleciona a tua opção curricular de 12.º ano
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingAnnualSubject(null)}
+                className="text-xs text-zinc-500 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick list of official Portuguese 12th year options */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                Opções Oficiais do 12.º Ano:
+              </span>
+              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto no-scrollbar">
+                {ANNUAL_12TH_SUBJECTS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => handleSelectAnnualOption(editingAnnualSubject.id, opt, true)}
+                    className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all ios-pressable flex items-center gap-1 ${
+                      editingAnnualSubject.name === opt
+                        ? 'bg-emerald-600 border-emerald-500 text-white font-bold'
+                        : 'bg-zinc-800/80 border-white/5 text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                    }`}
+                  >
+                    <span>{opt}</span>
+                    {subjectStats[opt] && (
+                      <span className="text-[9px] px-1 rounded bg-blue-500/20 text-blue-300">
+                        {subjectStats[opt].count}T
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Existing test subjects in app (if any) */}
+            {Object.keys(subjectStats).length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-white/5">
+                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
+                  Vincular a Testes já Criados na App:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(subjectStats).map(([subjName, stat]) => (
+                    <button
+                      key={subjName}
+                      type="button"
+                      onClick={() => handleSelectAnnualOption(editingAnnualSubject.id, subjName, false)}
+                      className="text-xs px-2 py-1 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 hover:bg-blue-500/20 flex items-center gap-1"
+                    >
+                      <span>{subjName}</span>
+                      <span className="text-[9px] text-zinc-400 font-normal">
+                        ({stat.weightedAverage.toFixed(1)} val)
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom name input */}
+            <div className="space-y-1.5 pt-2 border-t border-white/5">
+              <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                Ou escreve outro nome:
+              </span>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nome da disciplina anual..."
+                  value={customAnnualName}
+                  onChange={(e) => setCustomAnnualName(e.target.value)}
+                  className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (customAnnualName.trim()) {
+                      handleSelectAnnualOption(editingAnnualSubject.id, customAnnualName.trim(), true);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs ios-pressable"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

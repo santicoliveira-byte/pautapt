@@ -6,6 +6,7 @@ import {
 } from '../types';
 import {
   PORTUGAL_DEFAULT_SUBJECTS,
+  ANNUAL_12TH_SUBJECTS,
   SCALE_PRESETS,
   calculateGrade20,
   getClassification,
@@ -74,6 +75,24 @@ export const TestWizard: React.FC<TestWizardProps> = ({
 
   const [notes, setNotes] = useState<string>(initialTest?.notes || '');
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  // Sync state whenever initialTest changes (e.g. user clicked "+ Teste" for an annual subject)
+  React.useEffect(() => {
+    if (initialTest) {
+      setSubject(initialTest.subject || 'Matemática A');
+      setTitle(initialTest.title || '');
+      setDate(initialTest.date || new Date().toISOString().split('T')[0]);
+      setTotalScale(initialTest.totalScale || 200);
+      setMode(initialTest.mode || 'domains');
+      if (initialTest.domains && initialTest.domains.length > 0) {
+        setDomains(initialTest.domains);
+      }
+      setDirectObtained(initialTest.obtainedPoints || 0);
+      setNotes(initialTest.notes || '');
+      setCustomSubject('');
+      setStep(1);
+    }
+  }, [initialTest]);
 
   // Modals for IAVE models & iOS Numpad
   const [isIAVEModalOpen, setIsIAVEModalOpen] = useState(false);
@@ -309,32 +328,71 @@ export const TestWizard: React.FC<TestWizardProps> = ({
             </div>
 
             {/* Quick chips for common subjects in Portugal */}
-            <div className="flex flex-wrap gap-1.5 mb-3 max-h-36 overflow-y-auto no-scrollbar py-0.5">
-              {PORTUGAL_DEFAULT_SUBJECTS.slice(0, 8).map((sub) => (
-                <button
-                  key={sub}
-                  type="button"
-                  onClick={() => handleSubjectSelect(sub)}
-                  className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all ios-pressable ${
-                    subject === sub
-                      ? 'bg-blue-600 border-blue-500 text-white font-medium shadow-ios-glow-blue'
-                      : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800'
-                  }`}
-                >
-                  {sub}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => handleSubjectSelect('OUTRA')}
-                className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all ios-pressable ${
-                  subject === 'OUTRA'
-                    ? 'bg-blue-600 border-blue-500 text-white font-medium'
-                    : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800'
-                }`}
-              >
-                + Outra
-              </button>
+            <div className="space-y-2 mb-3">
+              <div>
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
+                  Disciplinas Principais
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Matemática A',
+                    'Português',
+                    'Físico-Química A',
+                    'Biologia e Geologia',
+                    'Educação Física',
+                    'Filosofia',
+                    'Inglês',
+                    'História A',
+                  ].map((sub) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => handleSubjectSelect(sub)}
+                      className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all ios-pressable ${
+                        subject === sub
+                          ? 'bg-blue-600 border-blue-500 text-white font-medium shadow-ios-glow-blue'
+                          : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800'
+                      }`}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Opções 12.º Ano (Disciplinas Anuais)
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {ANNUAL_12TH_SUBJECTS.slice(0, 8).map((sub) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => handleSubjectSelect(sub)}
+                      className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all ios-pressable ${
+                        subject === sub
+                          ? 'bg-emerald-600 border-emerald-500 text-white font-bold shadow-sm'
+                          : 'bg-emerald-950/40 border-emerald-500/20 text-emerald-300 hover:bg-emerald-900/40'
+                      }`}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => handleSubjectSelect('OUTRA')}
+                    className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all ios-pressable ${
+                      subject === 'OUTRA'
+                        ? 'bg-blue-600 border-blue-500 text-white font-medium'
+                        : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800'
+                    }`}
+                  >
+                    + Outra
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Custom subject input if selected or chosen from select */}
@@ -353,11 +411,25 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                 onChange={(e) => handleSubjectSelect(e.target.value)}
                 className="w-full bg-zinc-950/80 border border-white/10 rounded-2xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
               >
-                {PORTUGAL_DEFAULT_SUBJECTS.map((sub) => (
-                  <option key={sub} value={sub}>
-                    {sub}
-                  </option>
-                ))}
+                {!PORTUGAL_DEFAULT_SUBJECTS.includes(subject) && subject && (
+                  <option value={subject}>{subject}</option>
+                )}
+                <optgroup label="Disciplinas Anuais (12.º Ano)">
+                  {ANNUAL_12TH_SUBJECTS.map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub} (12.º Ano)
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Disciplinas Trienais e Bienais">
+                  {PORTUGAL_DEFAULT_SUBJECTS.filter((s) => !ANNUAL_12TH_SUBJECTS.includes(s)).map(
+                    (sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    )
+                  )}
+                </optgroup>
               </select>
             )}
           </div>

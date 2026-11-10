@@ -1,21 +1,45 @@
 import { GradeClassification, SchoolTest, SubjectStats } from '../types';
 
+export const ANNUAL_12TH_SUBJECTS = [
+  'Química',
+  'Biologia',
+  'Física',
+  'Geologia',
+  'Psicologia B',
+  'Sociologia',
+  'Economia C',
+  'Direito',
+  'Aplicações Informáticas B',
+  'Oficina de Artes',
+  'Oficina Multimédia B',
+  'Materiais e Tecnologias',
+  'Antropologia',
+  'Ciência Política',
+  'Filosofia A',
+  'Língua Estrangeira (12º)',
+];
+
 export const PORTUGAL_DEFAULT_SUBJECTS = [
-  'Matemática A',
+  // Trienais
   'Português',
+  'Matemática A',
+  'Educação Física',
+  'História A',
+  'Desenho A',
+  // Bienais
   'Físico-Química A',
   'Biologia e Geologia',
-  'Geometria Descritiva A',
   'Filosofia',
   'Inglês',
-  'História A',
   'Economia A',
   'Geografia A',
+  'Geometria Descritiva A',
+  'História da Cultura e Artes',
   'Matemática B',
   'MACS',
-  'Educação Física',
+  // Disciplinas Anuais (12.º Ano)
+  ...ANNUAL_12TH_SUBJECTS,
   'Programação e Sistemas',
-  'Aplicações Informáticas B',
 ];
 
 export const SCALE_PRESETS = [
