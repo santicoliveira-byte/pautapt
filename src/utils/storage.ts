@@ -1,6 +1,48 @@
-import { SchoolTest } from '../types';
+import { SchoolTest, UpcomingEvaluation } from '../types';
 
 const STORAGE_KEY = 'pautapt_tests_v2';
+const UPCOMING_KEY = 'pautapt_upcoming_evaluations_v1';
+const TARGET_COURSE_KEY = 'pautapt_target_course_id_v1';
+
+export function loadSavedUpcomingEvaluations(): UpcomingEvaluation[] {
+  try {
+    const raw = localStorage.getItem(UPCOMING_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Erro ao ler avaliações agendadas do localStorage:', error);
+    return [];
+  }
+}
+
+export function saveUpcomingEvaluations(items: UpcomingEvaluation[]): void {
+  try {
+    localStorage.setItem(UPCOMING_KEY, JSON.stringify(items));
+  } catch (error) {
+    console.error('Erro ao guardar avaliações agendadas no localStorage:', error);
+  }
+}
+
+export function loadTargetCourseId(): string | null {
+  try {
+    return localStorage.getItem(TARGET_COURSE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveTargetCourseId(courseId: string | null): void {
+  try {
+    if (courseId) {
+      localStorage.setItem(TARGET_COURSE_KEY, courseId);
+    } else {
+      localStorage.removeItem(TARGET_COURSE_KEY);
+    }
+  } catch (error) {
+    console.error('Erro ao guardar curso alvo no localStorage:', error);
+  }
+}
 
 export function loadSavedTests(): SchoolTest[] {
   try {

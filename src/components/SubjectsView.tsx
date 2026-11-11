@@ -20,6 +20,7 @@ interface SubjectsViewProps {
   onNewTestForSubject: (subjectName: string) => void;
   onSimulateForSubject: (subjectName: string) => void;
   onDeleteTest: (testId: string) => void;
+  onScheduleForSubject?: (subjectName: string) => void;
 }
 
 export const SubjectsView: React.FC<SubjectsViewProps> = ({
@@ -28,6 +29,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
   onNewTestForSubject,
   onSimulateForSubject,
   onDeleteTest,
+  onScheduleForSubject,
 }) => {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   const subjectStats = calculateSubjectStats(tests);
@@ -205,8 +207,19 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                       className="flex-1 py-2 px-3 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-medium flex items-center justify-center gap-1.5 ios-pressable"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Novo Teste para {stat.name}</span>
+                      <span>Novo Teste</span>
                     </button>
+
+                    {onScheduleForSubject && (
+                      <button
+                        type="button"
+                        onClick={() => onScheduleForSubject(stat.name)}
+                        className="py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-white/5 text-xs font-medium flex items-center justify-center gap-1.5 ios-pressable"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Agendar</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

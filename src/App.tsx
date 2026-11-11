@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolTest } from './types';
-import { loadSavedTests, saveTests } from './utils/storage';
+import { SchoolTest, UpcomingEvaluation } from './types';
+import {
+  loadSavedTests,
+  saveTests,
+  loadSavedUpcomingEvaluations,
+  saveUpcomingEvaluations,
+} from './utils/storage';
 import { Header } from './components/Header';
 import { TabBar, TabType } from './components/TabBar';
 import { DashboardView } from './components/DashboardView';
@@ -10,10 +15,16 @@ import { SimulatorView } from './components/SimulatorView';
 import { SettingsView } from './components/SettingsView';
 import { TestDetailModal } from './components/TestDetailModal';
 import { ReportModal } from './components/ReportModal';
+import { UpcomingAgendaModal } from './components/UpcomingAgendaModal';
 import { getStoredAccentColor, applyAccentColor, AccentColor } from './utils/theme';
 
 export const App: React.FC = () => {
   const [tests, setTests] = useState<SchoolTest[]>(() => loadSavedTests());
+  const [evaluations, setEvaluations] = useState<UpcomingEvaluation[]>(() =>
+    loadSavedUpcomingEvaluations()
+  );
+  const [isAgendaModalOpen, setIsAgendaModalOpen] = useState<boolean>(false);
+  const [agendaInitialSubject, setAgendaInitialSubject] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [selectedTestModal, setSelectedTestModal] = useState<SchoolTest | null>(null);
   const [editingTest, setEditingTest] = useState<SchoolTest | null>(null);
@@ -31,10 +42,58 @@ export const App: React.FC = () => {
     applyAccentColor(currentAccent);
   }, [currentAccent]);
 
-  // Persist to localStorage whenever tests change
+  // Persist tests to localStorage
   useEffect(() => {
     saveTests(tests);
   }, [tests]);
+
+  // Persist upcoming evaluations to localStorage
+  useEffect(() => {
+    saveUpcomingEvaluations(evaluations);
+  }, [evaluations]);
+
+  // Handle saving upcoming evaluation
+  const handleSaveEvaluation = (savedEvaluation: UpcomingEvaluation) => {
+    setEvaluations((prev) => {
+      const idx = prev.findIndex((e) => e.id === savedEvaluation.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = savedEvaluation;
+        return copy;
+      }
+      return [savedEvaluation, ...prev];
+    });
+  };
+
+  // Handle deleting evaluation
+  const handleDeleteEvaluation = (id: string) => {
+    setEvaluations((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  // Mark evaluation as completed (converts to a test wizard draft)
+  const handleMarkEvaluationCompleted = (item: UpcomingEvaluation) => {
+    setIsAgendaModalOpen(false);
+    setEditingTest({
+      id: '',
+      title: item.title,
+      subject: item.subject,
+      totalScale: item.totalScale || 200,
+      weight: item.weight || 25,
+      mode: 'domains',
+      domains: [
+        { id: '1', name: 'Domínio 1', maxScore: (item.totalScale || 200) / 2, obtainedScore: 0 },
+        { id: '2', name: 'Domínio 2', maxScore: (item.totalScale || 200) / 2, obtainedScore: 0 },
+      ],
+      obtainedPoints: 0,
+      grade20: 0,
+      percentage: 0,
+      classification: 'insuficiente',
+      term: '1º Período',
+      date: item.date,
+      notes: item.notes,
+    });
+    setActiveTab('calculator');
+  };
 
   // Handle saving new or edited test
   const handleSaveTest = (savedTest: SchoolTest) => {
@@ -116,6 +175,7 @@ export const App: React.FC = () => {
         {activeTab === 'dashboard' && (
           <DashboardView
             tests={tests}
+            evaluations={evaluations}
             onSelectTest={(test) => setSelectedTestModal(test)}
             onNewTestClick={() => {
               setEditingTest(null);
@@ -127,6 +187,14 @@ export const App: React.FC = () => {
               setActiveTab('subjects');
             }}
             onOpenReport={() => setIsReportModalOpen(true)}
+            onOpenAgenda={() => {
+              setAgendaInitialSubject('');
+              setIsAgendaModalOpen(true);
+            }}
+            onQuickAddEvaluation={() => {
+              setAgendaInitialSubject('');
+              setIsAgendaModalOpen(true);
+            }}
           />
         )}
 
@@ -148,6 +216,10 @@ export const App: React.FC = () => {
             onNewTestForSubject={handleNewTestForSubject}
             onSimulateForSubject={handleSimulateForSubject}
             onDeleteTest={handleDeleteTest}
+            onScheduleForSubject={(subj) => {
+              setAgendaInitialSubject(subj);
+              setIsAgendaModalOpen(true);
+            }}
           />
         )}
 
@@ -195,6 +267,18 @@ export const App: React.FC = () => {
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         tests={tests}
+      />
+
+      {/* Upcoming Evaluations & Calendar (.ics) Modal */}
+      <UpcomingAgendaModal
+        isOpen={isAgendaModalOpen}
+        onClose={() => setIsAgendaModalOpen(false)}
+        evaluations={evaluations}
+        onSaveEvaluation={handleSaveEvaluation}
+        onDeleteEvaluation={handleDeleteEvaluation}
+        onMarkAsCompleted={handleMarkEvaluationCompleted}
+        existingSubjects={Array.from(new Set(tests.map((t) => t.subject)))}
+        initialSubject={agendaInitialSubject}
       />
     </div>
   );

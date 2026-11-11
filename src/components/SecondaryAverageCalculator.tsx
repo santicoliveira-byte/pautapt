@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolTest, SubjectStats } from '../types';
+import { SchoolTest, SubjectStats, UniversityCourse } from '../types';
 import { calculateSubjectStats, ANNUAL_12TH_SUBJECTS } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
+import { CourseSearchModal } from './CourseSearchModal';
+import { loadTargetCourseId, saveTargetCourseId } from '../utils/storage';
 import {
   GraduationCap,
   Sparkles,
@@ -15,6 +17,7 @@ import {
   Check,
   Edit2,
   BookOpen,
+  Search,
 } from 'lucide-react';
 
 export type SubjectType = 'trienal' | 'bienal' | 'anual';
@@ -307,6 +310,18 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
       return 25;
     }
   });
+
+  // DGES Courses Modal State
+  const [isDgesModalOpen, setIsDgesModalOpen] = useState(false);
+  const [targetCourseId, setTargetCourseId] = useState<string | null>(() => loadTargetCourseId());
+
+  const handleSelectCourseDges = (course: UniversityCourse) => {
+    setTargetCourseId(course.id);
+    saveTargetCourseId(course.id);
+    if (course.secondaryWeightPct === 50) setAdmissionWeight('50-50');
+    else if (course.secondaryWeightPct === 60) setAdmissionWeight('60-40');
+    else if (course.secondaryWeightPct === 65) setAdmissionWeight('65-35');
+  };
 
   const [showCoursePicker, setShowCoursePicker] = useState<boolean>(false);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -669,7 +684,20 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              setIsDgesModalOpen(true);
+            }}
+            className="text-[11px] font-semibold px-2.5 py-1.5 rounded-xl bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white flex items-center gap-1.5 ios-pressable transition-colors"
+            title="Ver Cursos e Notas do Último Colocado (DGES)"
+          >
+            <Search className="w-3.5 h-3.5 text-purple-400" />
+            <span>Cursos DGES</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -866,6 +894,18 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              setIsDgesModalOpen(true);
+            }}
+            className="w-full mt-2.5 py-1.5 px-2 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 border border-purple-500/25 text-purple-300 text-[11px] font-semibold flex items-center justify-center gap-1.5 ios-pressable transition-colors"
+          >
+            <Search className="w-3 h-3 text-purple-400" />
+            <span>Comparar com Últimos Colocados DGES</span>
+          </button>
         </div>
       </div>
 
@@ -1374,6 +1414,15 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
           <span>Excelente Média de Secundário ({finalCFC.toFixed(2)} valores)! Celebrar 🎉</span>
         </button>
       )}
+
+      {/* DGES Courses Search Modal */}
+      <CourseSearchModal
+        isOpen={isDgesModalOpen}
+        onClose={() => setIsDgesModalOpen(false)}
+        selectedCourseId={targetCourseId}
+        onSelectCourse={handleSelectCourseDges}
+        userCandidateScore200={finalApplicationScore !== null ? finalApplicationScore : finalCFCPoints200}
+      />
     </div>
   );
 };

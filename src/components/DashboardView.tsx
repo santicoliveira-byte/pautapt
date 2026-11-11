@@ -1,10 +1,11 @@
 import React from 'react';
-import { SchoolTest } from '../types';
+import { SchoolTest, UpcomingEvaluation } from '../types';
 import {
   calculateSubjectStats,
   getClassificationBadgeStyle,
 } from '../utils/gradeUtils';
 import { EvolutionChart } from './EvolutionChart';
+import { UpcomingCountdownHero } from './UpcomingCountdownHero';
 import {
   Award,
   BookOpen,
@@ -20,20 +21,26 @@ import {
 
 interface DashboardViewProps {
   tests: SchoolTest[];
+  evaluations?: UpcomingEvaluation[];
   onSelectTest: (test: SchoolTest) => void;
   onNewTestClick: () => void;
   onOpenSimulator: () => void;
   onSelectSubject: (subjectName: string) => void;
   onOpenReport?: () => void;
+  onOpenAgenda?: () => void;
+  onQuickAddEvaluation?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   tests,
+  evaluations = [],
   onSelectTest,
   onNewTestClick,
   onOpenSimulator,
   onSelectSubject,
   onOpenReport,
+  onOpenAgenda,
+  onQuickAddEvaluation,
 }) => {
   const subjectStats = calculateSubjectStats(tests);
   const subjectsList = Object.values(subjectStats);
@@ -126,6 +133,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Evolution Chart (when >= 2 tests exist) */}
       {totalTests >= 2 && <EvolutionChart tests={tests} />}
+
+      {/* Upcoming Evaluations Agenda Hero Widget */}
+      {onOpenAgenda && (
+        <UpcomingCountdownHero
+          evaluations={evaluations}
+          onOpenAgendaModal={onOpenAgenda}
+          onQuickAdd={onQuickAddEvaluation || onOpenAgenda}
+        />
+      )}
 
       {/* Action Banners Grid */}
       <div className="grid grid-cols-2 gap-2">

@@ -1,23 +1,32 @@
 import React, { useState } from 'react';
-import { SchoolTest } from '../types';
+import { SchoolTest, UniversityCourse } from '../types';
 import { calculateSubjectStats } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
+import { DGES_COURSES } from '../data/dgesCourses';
+import { loadTargetCourseId, saveTargetCourseId } from '../utils/storage';
+import { TargetCourseCard } from './TargetCourseCard';
+import { CourseSearchModal } from './CourseSearchModal';
 import {
   GraduationCap,
   Sparkles,
+  Search,
 } from 'lucide-react';
 
 interface HigherEducationSimulatorProps {
   tests: SchoolTest[];
+  initialSecondaryAverage?: number;
 }
 
-export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> = ({ tests }) => {
+export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> = ({
+  tests,
+  initialSecondaryAverage,
+}) => {
   const stats = calculateSubjectStats(tests);
   const subjectList = Object.values(stats);
 
-  // Automatically estimate secondary average from recorded tests if available
-  const overallAvg =
+  // Automatically estimate secondary average from recorded tests or passed prop
+  const calculatedDefault =
     subjectList.length > 0
       ? Number(
           (
@@ -27,15 +36,25 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
         )
       : 15.0;
 
-  const [secondaryAvg, setSecondaryAvg] = useState<number>(overallAvg);
+  const [secondaryAvg, setSecondaryAvg] = useState<number>(
+    initialSecondaryAverage !== undefined ? initialSecondaryAverage : calculatedDefault
+  );
   const [exam1Score, setExam1Score] = useState<number>(160); // in 200 scale
   const [exam1Name, setExam1Name] = useState<string>('Exame Matemática A (635)');
   const [hasExam2, setHasExam2] = useState<boolean>(false);
   const [exam2Score, setExam2Score] = useState<number>(150);
   const [exam2Name, setExam2Name] = useState<string>('Exame Físico-Química A (715)');
 
+  // Target Course state
+  const [targetCourseId, setTargetCourseId] = useState<string | null>(() => loadTargetCourseId());
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const targetCourse = DGES_COURSES.find((c) => c.id === targetCourseId) || null;
+
   // Weights: typically 50/50, 60/40, or 65/35
-  const [secondaryWeightPct, setSecondaryWeightPct] = useState<number>(50);
+  const [secondaryWeightPct, setSecondaryWeightPct] = useState<number>(
+    targetCourse ? targetCourse.secondaryWeightPct : 50
+  );
   const examWeightPct = 100 - secondaryWeightPct;
 
   // Compute average of exams
@@ -57,6 +76,28 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
     triggerCelebration();
   };
 
+  const handleSelectCourse = (course: UniversityCourse) => {
+    setTargetCourseId(course.id);
+    saveTargetCourseId(course.id);
+    setSecondaryWeightPct(course.secondaryWeightPct);
+
+    // Auto-set exam names if matches
+    if (course.requiredExams.includes('+')) {
+      const parts = course.requiredExams.split('+').map((p) => p.trim());
+      setExam1Name(parts[0]);
+      setExam2Name(parts[1]);
+      setHasExam2(true);
+    } else {
+      setExam1Name(course.requiredExams);
+      setHasExam2(false);
+    }
+  };
+
+  const handleClearTarget = () => {
+    setTargetCourseId(null);
+    saveTargetCourseId(null);
+  };
+
   return (
     <div className="max-w-md mx-auto pb-28 pt-2 px-4 space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -73,7 +114,29 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
             </p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic('light');
+            setIsSearchOpen(true);
+          }}
+          className="p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-semibold flex items-center gap-1.5 ios-pressable transition-colors"
+          title="Pesquisar Base de Cursos DGES"
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span className="text-[11px]">Cursos DGES</span>
+        </button>
       </div>
+
+      {/* Target Course Pinned Card */}
+      <TargetCourseCard
+        course={targetCourse}
+        userScore200={finalScore200}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onApplyCourseFormula={(secWeight) => setSecondaryWeightPct(secWeight)}
+        onClearTarget={handleClearTarget}
+      />
 
       {/* Main Result Card */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 p-5 border border-purple-500/30 shadow-ios-card">
@@ -260,6 +323,15 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
           )}
         </div>
       </div>
+
+      {/* DGES Courses Search Modal */}
+      <CourseSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        selectedCourseId={targetCourseId}
+        onSelectCourse={handleSelectCourse}
+        userCandidateScore200={finalScore200}
+      />
     </div>
   );
 };

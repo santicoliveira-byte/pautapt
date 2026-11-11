@@ -36,3 +36,44 @@ export interface SubjectStats {
   totalWeight: number;
   tests: SchoolTest[];
 }
+
+export type EvaluationType = 'teste' | 'exame' | 'questao-aula' | 'trabalho';
+
+export interface UpcomingEvaluation {
+  id: string;
+  title: string;
+  subject: string;
+  date: string; // YYYY-MM-DD
+  time?: string; // HH:mm (optional, e.g. "10:15")
+  type: EvaluationType;
+  weight?: number; // e.g. 25 (%)
+  totalScale?: number; // e.g. 200 or 20
+  notes?: string;
+}
+
+export type CourseArea =
+  | 'Saúde'
+  | 'Engenharia & Tecnologia'
+  | 'Economia & Gestão'
+  | 'Direito & Ciências Sociais'
+  | 'Ciências'
+  | 'Artes & Arquitetura'
+  | 'Humanidades';
+
+export interface UniversityCourse {
+  id: string;
+  code: string;
+  name: string;
+  institution: string;
+  institutionCode: string;
+  shortInstitution: string;
+  city: string;
+  area: CourseArea;
+  lastCutoff200: number; // e.g. 182.5 (out of 200)
+  places: number;
+  requiredExams: string; // e.g. "19 Matemática A" ou "02 Bio/Geo + 07 FQ"
+  secondaryWeightPct: number; // e.g. 50, 60, 65
+  examsWeightPct: number; // e.g. 50, 40, 35
+  websiteUrl?: string;
+}
+
