@@ -78,7 +78,7 @@ export const App: React.FC = () => {
       title: item.title,
       subject: item.subject,
       totalScale: item.totalScale || 200,
-      weight: item.weight || (item.type === 'questao-aula' ? 15 : 70),
+      weight: item.weight || (item.type === 'teste' ? 2 : 1),
       type: item.type,
       mode: 'domains',
       domains: [
@@ -164,7 +164,7 @@ export const App: React.FC = () => {
       title: '',
       subject: subjectName,
       totalScale: 200,
-      weight: 70,
+      weight: 2,
       type: 'teste',
       mode: 'domains',
       domains: [

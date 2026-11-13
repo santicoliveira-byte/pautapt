@@ -5,6 +5,7 @@ import {
   getClassificationBadgeStyle,
   detectEvaluationType,
   EVALUATION_TYPE_CONFIGS,
+  formatWeight,
 } from '../utils/gradeUtils';
 import {
   BookOpen,
@@ -195,7 +196,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                                 </span>
                                 <span>•</span>
                                 <span className="text-zinc-400 font-medium">
-                                  Peso: {test.weight}% ({impactPct}%)
+                                  Peso: {formatWeight(test.weight)} ({impactPct}% da média)
                                 </span>
                               </p>
                             </div>

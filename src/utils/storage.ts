@@ -1,5 +1,5 @@
 import { SchoolTest, UpcomingEvaluation } from '../types';
-import { detectEvaluationType, EVALUATION_TYPE_CONFIGS } from './gradeUtils';
+import { detectEvaluationType } from './gradeUtils';
 
 const STORAGE_KEY = 'pautapt_tests_v2';
 const UPCOMING_KEY = 'pautapt_upcoming_evaluations_v1';
@@ -69,8 +69,14 @@ export function loadSavedTests(): SchoolTest[] {
         updatedType = detectedType;
         needsResave = true;
       }
-      if (t.weight === undefined || t.weight === null || t.weight === 1) {
-        updatedWeight = EVALUATION_TYPE_CONFIGS[detectedType]?.defaultWeight || 70;
+      if (
+        t.weight === undefined ||
+        t.weight === null ||
+        (t.weight === 1 && detectedType === 'teste') ||
+        t.weight === 70 ||
+        t.weight === 15
+      ) {
+        updatedWeight = detectedType === 'teste' ? 2 : 1;
         needsResave = true;
       }
 

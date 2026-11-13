@@ -1,5 +1,5 @@
 import React from 'react';
-import { getClassification, getClassificationBadgeStyle, getClassificationLabel } from '../utils/gradeUtils';
+import { getClassification, getClassificationBadgeStyle, getClassificationLabel, formatWeight } from '../utils/gradeUtils';
 import { CheckCircle2, AlertTriangle, AlertCircle, Sparkles } from 'lucide-react';
 
 interface GradeDisplayCardProps {
@@ -77,7 +77,7 @@ export const GradeDisplayCard: React.FC<GradeDisplayCardProps> = ({
         </div>
         {weight !== undefined && weight > 0 && (
           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-white/5">
-            Peso: {weight}%
+            Peso: {formatWeight(weight)}
           </span>
         )}
       </div>

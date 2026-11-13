@@ -6,6 +6,7 @@ import {
   getEffectiveWeight,
   detectEvaluationType,
   EVALUATION_TYPE_CONFIGS,
+  formatWeight,
 } from '../utils/gradeUtils';
 import { EvolutionChart } from './EvolutionChart';
 import { UpcomingCountdownHero } from './UpcomingCountdownHero';
@@ -335,7 +336,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <p className="text-[10px] text-zinc-500 flex items-center gap-1.5">
                         <span>{test.obtainedPoints} / {test.totalScale} pts ({test.percentage.toFixed(0)}%)</span>
                         <span>•</span>
-                        <span className="text-blue-400 font-semibold">Peso: {test.weight}%</span>
+                        <span className="text-blue-400 font-semibold">Peso: {formatWeight(test.weight)}</span>
                       </p>
                     </div>
                   </div>

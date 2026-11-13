@@ -4,7 +4,7 @@ import { GradeDisplayCard } from './GradeDisplayCard';
 import {
   detectEvaluationType,
   EVALUATION_TYPE_CONFIGS,
-  COMMON_WEIGHT_PRESETS,
+  formatWeight,
 } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import {
@@ -113,7 +113,7 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-white bg-zinc-800 px-2.5 py-0.5 rounded-lg border border-white/10">
-                  {test.weight}%
+                  {formatWeight(test.weight)}
                 </span>
                 <button
                   type="button"
@@ -151,7 +151,7 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
                           }`}
                         >
                           <div className="truncate">{cfg.shortLabel}</div>
-                          <div className="text-[9px] opacity-70">Padrão: {cfg.defaultWeight}%</div>
+                          <div className="text-[9px] opacity-70">Padrão: {formatWeight(cfg.defaultWeight)}</div>
                         </button>
                       );
                     })}
@@ -173,12 +173,40 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
                         onChange={(e) => setSelectedWeight(Math.max(1, Number(e.target.value) || 1))}
                         className="w-10 bg-transparent text-right font-bold text-xs text-white focus:outline-none"
                       />
-                      <span className="text-xs text-blue-400 font-bold">%</span>
+                      <span className="text-xs text-blue-400 font-bold">{selectedWeight <= 10 ? 'x' : '%'}</span>
                     </div>
                   </div>
 
+                  {/* Coeficientes rápidos: 2x (Dobro) e 1x (Base) */}
+                  <div className="grid grid-cols-2 gap-1.5 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWeight(2)}
+                      className={`py-1.5 px-2.5 rounded-xl border text-xs text-left transition-all ${
+                        selectedWeight === 2
+                          ? 'bg-blue-600/30 border-blue-500 text-white font-bold'
+                          : 'bg-zinc-800/40 border-white/5 text-zinc-300 hover:bg-zinc-800'
+                      }`}
+                    >
+                      <div className="text-blue-400 font-bold">2x (Dobro)</div>
+                      <div className="text-[9px] text-zinc-400">Teste Sumativo</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWeight(1)}
+                      className={`py-1.5 px-2.5 rounded-xl border text-xs text-left transition-all ${
+                        selectedWeight === 1
+                          ? 'bg-purple-600/30 border-purple-500 text-white font-bold'
+                          : 'bg-zinc-800/40 border-white/5 text-zinc-300 hover:bg-zinc-800'
+                      }`}
+                    >
+                      <div className="text-purple-400 font-bold">1x (Base)</div>
+                      <div className="text-[9px] text-zinc-400">Questão-Aula</div>
+                    </button>
+                  </div>
+
                   <div className="flex flex-wrap gap-1 mb-2">
-                    {COMMON_WEIGHT_PRESETS.map((wVal) => (
+                    {[3, 4, 10, 20, 25, 30, 50, 70].map((wVal) => (
                       <button
                         key={wVal}
                         type="button"
@@ -189,7 +217,7 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
                             : 'bg-zinc-800/60 border-white/5 text-zinc-400 hover:text-white'
                         }`}
                       >
-                        {wVal}%
+                        {formatWeight(wVal)}
                       </button>
                     ))}
                   </div>
@@ -209,7 +237,7 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
                         <span>Peso Atualizado!</span>
                       </>
                     ) : (
-                      <span>Gravar Ponderação ({selectedWeight}%)</span>
+                      <span>Gravar Ponderação ({formatWeight(selectedWeight)})</span>
                     )}
                   </button>
                 </div>

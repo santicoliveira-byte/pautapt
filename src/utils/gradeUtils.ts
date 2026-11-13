@@ -62,7 +62,7 @@ export interface EvaluationTypeConfig {
   id: EvaluationType;
   label: string;
   shortLabel: string;
-  defaultWeight: number; // percentagem sugerida (ex: 70% teste, 15% questionário)
+  defaultWeight: number; // Peso relativo (ex: Teste = 2x, Questão-Aula = 1x)
   description: string;
   badgeClass: {
     bg: string;
@@ -74,10 +74,10 @@ export interface EvaluationTypeConfig {
 export const EVALUATION_TYPE_CONFIGS: Record<EvaluationType, EvaluationTypeConfig> = {
   teste: {
     id: 'teste',
-    label: 'Teste Sumativo',
+    label: 'Teste Sumativo (2x)',
     shortLabel: 'Teste',
-    defaultWeight: 70,
-    description: 'Momento de avaliação principal (maior peso)',
+    defaultWeight: 2, // O teste vale o dobro da questão-aula
+    description: 'Vale o dobro de uma questão-aula (peso 2x)',
     badgeClass: {
       bg: 'bg-blue-500/15',
       text: 'text-blue-400',
@@ -86,10 +86,10 @@ export const EVALUATION_TYPE_CONFIGS: Record<EvaluationType, EvaluationTypeConfi
   },
   'questao-aula': {
     id: 'questao-aula',
-    label: 'Questionário / Questão-Aula',
-    shortLabel: 'Questionário',
-    defaultWeight: 15,
-    description: 'Mini-teste, questionário ou ficha rápida (menor peso)',
+    label: 'Questão-Aula / Questionário (1x)',
+    shortLabel: 'Questão-Aula',
+    defaultWeight: 1, // Peso base 1x (metade do teste)
+    description: 'Peso base 1x (metade do teste)',
     badgeClass: {
       bg: 'bg-purple-500/15',
       text: 'text-purple-400',
@@ -98,10 +98,10 @@ export const EVALUATION_TYPE_CONFIGS: Record<EvaluationType, EvaluationTypeConfi
   },
   trabalho: {
     id: 'trabalho',
-    label: 'Trabalho / Projeto',
+    label: 'Trabalho / Projeto (1x)',
     shortLabel: 'Trabalho',
-    defaultWeight: 20,
-    description: 'Relatório, trabalho de grupo ou individual',
+    defaultWeight: 1,
+    description: 'Relatório, projeto ou trabalho prático',
     badgeClass: {
       bg: 'bg-amber-500/15',
       text: 'text-amber-400',
@@ -110,9 +110,9 @@ export const EVALUATION_TYPE_CONFIGS: Record<EvaluationType, EvaluationTypeConfi
   },
   exame: {
     id: 'exame',
-    label: 'Exame / Prova Global',
+    label: 'Exame / Prova Global (3x)',
     shortLabel: 'Exame',
-    defaultWeight: 50,
+    defaultWeight: 3,
     description: 'Exame nacional ou prova de equivalência',
     badgeClass: {
       bg: 'bg-emerald-500/15',
@@ -124,8 +124,8 @@ export const EVALUATION_TYPE_CONFIGS: Record<EvaluationType, EvaluationTypeConfi
     id: 'outro',
     label: 'Outro / Personalizado',
     shortLabel: 'Outro',
-    defaultWeight: 25,
-    description: 'Outro elemento avaliativo ou ponderação livre',
+    defaultWeight: 1,
+    description: 'Outro elemento avaliativo',
     badgeClass: {
       bg: 'bg-zinc-500/15',
       text: 'text-zinc-300',
@@ -134,7 +134,15 @@ export const EVALUATION_TYPE_CONFIGS: Record<EvaluationType, EvaluationTypeConfi
   },
 };
 
-export const COMMON_WEIGHT_PRESETS = [10, 15, 20, 25, 30, 40, 50, 70, 80];
+export const COMMON_WEIGHT_PRESETS = [1, 2, 3, 4, 10, 20, 25, 30, 50, 70];
+
+export function formatWeight(weight?: number): string {
+  if (weight === undefined || weight === null || weight <= 0) return '1x';
+  if (weight <= 10 && Number.isInteger(weight)) {
+    return `${weight}x`;
+  }
+  return `${weight}%`;
+}
 
 /**
  * Deteta automaticamente o tipo de avaliação a partir do título
@@ -174,17 +182,18 @@ export function detectEvaluationType(title: string): EvaluationType {
 }
 
 /**
- * Retorna o peso efetivo de um teste, corrigindo automaticamente o bug legado de peso = 1
+ * Retorna o peso efetivo de um teste
+ * Garante a regra: Teste vale o dobro (peso 2x) da Questão-Aula (peso 1x)
  */
 export function getEffectiveWeight(test: SchoolTest): number {
-  if (test.weight !== undefined && test.weight > 1) {
+  if (test.weight !== undefined && test.weight > 0) {
+    // Migração de valores temporários anteriores (70 vira 2, 15 vira 1)
+    if (test.weight === 70) return 2;
+    if (test.weight === 15) return 1;
     return test.weight;
   }
   const type = test.type || detectEvaluationType(test.title);
-  if (test.weight === 1 || !test.weight) {
-    return EVALUATION_TYPE_CONFIGS[type]?.defaultWeight || 70;
-  }
-  return test.weight;
+  return type === 'teste' ? 2 : 1;
 }
 
 /**
@@ -315,7 +324,7 @@ export function calculateSubjectStats(tests: SchoolTest[]): Record<string, Subje
  * targetAverage: média desejada (ex: 16.0)
  * currentWeightedSum: soma ponderada atual
  * currentTotalWeight: peso total atual
- * nextWeight: peso do próximo teste (ex: 70 ou 30)
+ * nextWeight: peso do próximo teste (ex: 2 para teste, 1 para questão-aula)
  */
 export function simulateRequiredGrade(
   currentWeightedSum: number,
