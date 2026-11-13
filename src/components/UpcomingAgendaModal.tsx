@@ -138,6 +138,12 @@ export const UpcomingAgendaModal: React.FC<UpcomingAgendaModalProps> = ({
       text: 'text-purple-400',
       border: 'border-purple-500/30',
     },
+    outro: {
+      label: 'Outro',
+      bg: 'bg-zinc-500/20',
+      text: 'text-zinc-300',
+      border: 'border-zinc-500/30',
+    },
   };
 
   return (

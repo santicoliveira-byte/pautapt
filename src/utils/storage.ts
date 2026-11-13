@@ -1,4 +1,5 @@
 import { SchoolTest, UpcomingEvaluation } from '../types';
+import { detectEvaluationType, EVALUATION_TYPE_CONFIGS } from './gradeUtils';
 
 const STORAGE_KEY = 'pautapt_tests_v2';
 const UPCOMING_KEY = 'pautapt_upcoming_evaluations_v1';
@@ -55,7 +56,36 @@ export function loadSavedTests(): SchoolTest[] {
       return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    // Auto-migrate legacy tests that had weight stuck at 1 or missing type
+    let needsResave = false;
+    const migrated: SchoolTest[] = parsed.map((t: SchoolTest) => {
+      const detectedType = t.type || detectEvaluationType(t.title);
+      let updatedWeight = t.weight;
+      let updatedType = t.type;
+
+      if (!t.type) {
+        updatedType = detectedType;
+        needsResave = true;
+      }
+      if (t.weight === undefined || t.weight === null || t.weight === 1) {
+        updatedWeight = EVALUATION_TYPE_CONFIGS[detectedType]?.defaultWeight || 70;
+        needsResave = true;
+      }
+
+      return {
+        ...t,
+        type: updatedType,
+        weight: updatedWeight,
+      };
+    });
+
+    if (needsResave) {
+      saveTests(migrated);
+    }
+
+    return migrated;
   } catch (error) {
     console.error('Erro ao ler testes do localStorage:', error);
     return [];
@@ -98,6 +128,9 @@ export function importDataFromJSON(jsonString: string): SchoolTest[] | null {
 }
 
 export function clearAllTests(): void {
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem('pautapt_tests_v1');
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Erro ao limpar testes do localStorage:', error);
+  }
 }

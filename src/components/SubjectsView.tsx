@@ -3,6 +3,8 @@ import { SchoolTest } from '../types';
 import {
   calculateSubjectStats,
   getClassificationBadgeStyle,
+  detectEvaluationType,
+  EVALUATION_TYPE_CONFIGS,
 } from '../utils/gradeUtils';
 import {
   BookOpen,
@@ -162,41 +164,58 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
 
                   {/* List of tests for this subject */}
                   <div className="space-y-2">
-                    {stat.tests.map((test) => (
-                      <div
-                        key={test.id}
-                        onClick={() => onSelectTest(test)}
-                        className="p-2.5 rounded-2xl bg-zinc-900 border border-white/5 hover:border-white/10 flex items-center justify-between cursor-pointer ios-pressable"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-8 text-center text-xs font-bold text-blue-400">
-                            {test.grade20.toFixed(1)}
-                          </span>
-                          <div>
-                            <p className="text-xs font-medium text-white truncate max-w-[170px]">
-                              {test.title}
-                            </p>
-                            <p className="text-[10px] text-zinc-500 flex items-center gap-1">
-                              <Calendar className="w-2.5 h-2.5" />
-                              {new Date(test.date).toLocaleDateString('pt-PT')} • {test.obtainedPoints}/{test.totalScale} pts
-                            </p>
-                          </div>
-                        </div>
+                    {stat.tests.map((test) => {
+                      const detectedType = test.type || detectEvaluationType(test.title);
+                      const typeCfg = EVALUATION_TYPE_CONFIGS[detectedType];
+                      const impactPct = stat.totalWeight > 0 ? ((test.weight / stat.totalWeight) * 100).toFixed(0) : '0';
 
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm('Eliminar este teste da caderneta?')) {
-                              onDeleteTest(test.id);
-                            }
-                          }}
-                          className="p-1.5 text-zinc-500 hover:text-red-400 ios-pressable transition-colors"
+                      return (
+                        <div
+                          key={test.id}
+                          onClick={() => onSelectTest(test)}
+                          className="p-2.5 rounded-2xl bg-zinc-900 border border-white/5 hover:border-white/10 flex items-center justify-between cursor-pointer ios-pressable"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-8 text-center text-xs font-bold text-blue-400">
+                              {test.grade20.toFixed(1)}
+                            </span>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-medium text-white truncate max-w-[170px]">
+                                  {test.title}
+                                </p>
+                                <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border ${typeCfg.badgeClass.bg} ${typeCfg.badgeClass.text} ${typeCfg.badgeClass.border}`}>
+                                  {typeCfg.shortLabel}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-2.5 h-2.5" />
+                                  {new Date(test.date).toLocaleDateString('pt-PT')}
+                                </span>
+                                <span>•</span>
+                                <span className="text-zinc-400 font-medium">
+                                  Peso: {test.weight}% ({impactPct}%)
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm('Eliminar este teste da caderneta?')) {
+                                onDeleteTest(test.id);
+                              }
+                            }}
+                            className="p-1.5 text-zinc-500 hover:text-red-400 ios-pressable transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Quick Action: Add new test for this subject */}

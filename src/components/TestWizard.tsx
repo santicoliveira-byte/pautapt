@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   DomainItem,
   EvaluationMode,
+  EvaluationType,
   SchoolTest,
 } from '../types';
 import {
@@ -10,6 +11,9 @@ import {
   SCALE_PRESETS,
   calculateGrade20,
   getClassification,
+  detectEvaluationType,
+  EVALUATION_TYPE_CONFIGS,
+  COMMON_WEIGHT_PRESETS,
 } from '../utils/gradeUtils';
 import { GradeDisplayCard } from './GradeDisplayCard';
 import { IAVEPresetsModal, IAVEPreset } from './IAVEPresetsModal';
@@ -48,11 +52,18 @@ export const TestWizard: React.FC<TestWizardProps> = ({
   const [subject, setSubject] = useState<string>(initialTest?.subject || 'Matemática A');
   const [customSubject, setCustomSubject] = useState<string>('');
   const [title, setTitle] = useState<string>(initialTest?.title || '');
+  const initialDetectedType = initialTest?.type || (initialTest?.title ? detectEvaluationType(initialTest.title) : 'teste');
+  const [evalType, setEvalType] = useState<EvaluationType>(initialDetectedType);
+  const [weight, setWeight] = useState<number>(() => {
+    if (initialTest && initialTest.weight !== undefined && initialTest.weight > 1) {
+      return initialTest.weight;
+    }
+    return EVALUATION_TYPE_CONFIGS[initialDetectedType]?.defaultWeight || 70;
+  });
   const term = initialTest?.term || 'Geral';
   const [date, setDate] = useState<string>(
     initialTest?.date || new Date().toISOString().split('T')[0]
   );
-  const weight = initialTest?.weight ?? 1;
   const [totalScale, setTotalScale] = useState<number>(initialTest?.totalScale || 200);
   const [customScaleInput, setCustomScaleInput] = useState<string>('');
   const [mode, setMode] = useState<EvaluationMode>(initialTest?.mode || 'domains');
@@ -84,6 +95,10 @@ export const TestWizard: React.FC<TestWizardProps> = ({
       setDate(initialTest.date || new Date().toISOString().split('T')[0]);
       setTotalScale(initialTest.totalScale || 200);
       setMode(initialTest.mode || 'domains');
+      const detType = initialTest.type || detectEvaluationType(initialTest.title || '');
+      setEvalType(detType);
+      const effectiveW = initialTest.weight && initialTest.weight > 1 ? initialTest.weight : (EVALUATION_TYPE_CONFIGS[detType]?.defaultWeight || 70);
+      setWeight(effectiveW);
       if (initialTest.domains && initialTest.domains.length > 0) {
         setDomains(initialTest.domains);
       }
@@ -245,12 +260,15 @@ export const TestWizard: React.FC<TestWizardProps> = ({
       title.trim() ||
       `Teste de ${finalSubjectName} (${new Date(date).toLocaleDateString('pt-PT')})`;
 
+    const effectiveWeight = Number(weight) > 0 ? Number(weight) : (EVALUATION_TYPE_CONFIGS[evalType]?.defaultWeight || 70);
+
     const newTest: SchoolTest = {
       id: initialTest?.id || String(Date.now()),
       title: effectiveTitle,
       subject: finalSubjectName,
       totalScale: scaleToUse,
-      weight: Number(weight) || 0,
+      weight: effectiveWeight,
+      type: evalType,
       mode,
       domains: mode === 'direct' ? [] : domains,
       obtainedPoints: currentTotalObtained,
@@ -469,7 +487,87 @@ export const TestWizard: React.FC<TestWizardProps> = ({
 
           {/* Card: Cotação Total e Ponderação */}
           <div className="bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-ios-card space-y-4">
+            {/* Tipo de Avaliação */}
             <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Tipo de Avaliação
+                </label>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${EVALUATION_TYPE_CONFIGS[evalType].badgeClass.bg} ${EVALUATION_TYPE_CONFIGS[evalType].badgeClass.text} ${EVALUATION_TYPE_CONFIGS[evalType].badgeClass.border}`}>
+                  {EVALUATION_TYPE_CONFIGS[evalType].label}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                {(Object.keys(EVALUATION_TYPE_CONFIGS) as EvaluationType[]).map((tKey) => {
+                  const cfg = EVALUATION_TYPE_CONFIGS[tKey];
+                  const isSelected = evalType === tKey;
+                  return (
+                    <button
+                      key={tKey}
+                      type="button"
+                      onClick={() => {
+                        setEvalType(tKey);
+                        setWeight(cfg.defaultWeight);
+                      }}
+                      className={`p-2 rounded-xl text-left border transition-all ios-pressable ${
+                        isSelected
+                          ? `${cfg.badgeClass.bg} ${cfg.badgeClass.border} font-bold text-white shadow-sm ring-1 ring-white/20`
+                          : 'bg-zinc-800/40 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800/80'
+                      }`}
+                    >
+                      <div className="text-xs font-semibold truncate">{cfg.shortLabel}</div>
+                      <div className="text-[10px] opacity-75">Sugerido: {cfg.defaultWeight}%</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Ponderação / Peso na Média */}
+            <div className="pt-3 border-t border-white/5">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Peso na Média da Disciplina
+                  </label>
+                  <p className="text-[10px] text-zinc-500">
+                    Define o impacto na média (ex: Teste 70%, Questionário 15%)
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 bg-zinc-950 border border-white/10 rounded-xl px-2.5 py-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={weight}
+                    onChange={(e) => setWeight(Math.max(1, Number(e.target.value) || 1))}
+                    className="w-12 bg-transparent text-right font-bold text-sm text-white focus:outline-none"
+                  />
+                  <span className="text-xs text-blue-400 font-bold">%</span>
+                </div>
+              </div>
+
+              {/* Quick weight presets */}
+              <div className="flex flex-wrap gap-1.5">
+                {COMMON_WEIGHT_PRESETS.map((wPreset) => (
+                  <button
+                    key={wPreset}
+                    type="button"
+                    onClick={() => setWeight(wPreset)}
+                    className={`text-xs px-2.5 py-1 rounded-xl border transition-all ios-pressable ${
+                      weight === wPreset
+                        ? 'bg-blue-600 border-blue-500 text-white font-bold shadow-ios-glow-blue'
+                        : 'bg-zinc-800/60 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800'
+                    }`}
+                  >
+                    {wPreset}%
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cotação Total */}
+            <div className="pt-3 border-t border-white/5">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                   Cotação Total do Teste
@@ -692,6 +790,7 @@ export const TestWizard: React.FC<TestWizardProps> = ({
             obtainedPoints={currentTotalObtained}
             totalScale={mode === 'direct' ? totalScale : currentTotalMaxPoints}
             grade20={currentGrade20}
+            weight={weight}
             subject={finalSubjectName}
           />
 
@@ -705,7 +804,17 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                 type="text"
                 placeholder={`Ex: 1º Teste de ${finalSubjectName}`}
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTitle(val);
+                  if (!initialTest && val.trim().length >= 3) {
+                    const detected = detectEvaluationType(val);
+                    if (detected !== evalType) {
+                      setEvalType(detected);
+                      setWeight(EVALUATION_TYPE_CONFIGS[detected].defaultWeight);
+                    }
+                  }
+                }}
                 className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-3.5 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -730,6 +839,25 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                   <span className="text-blue-400 font-medium ml-1">Editar</span>
                 </button>
               </div>
+            </div>
+
+            {/* Ponderação & Tipo badge in Step 2 */}
+            <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border ${EVALUATION_TYPE_CONFIGS[evalType].badgeClass.bg} ${EVALUATION_TYPE_CONFIGS[evalType].badgeClass.text} ${EVALUATION_TYPE_CONFIGS[evalType].badgeClass.border}`}>
+                  {EVALUATION_TYPE_CONFIGS[evalType].shortLabel}
+                </span>
+                <span className="text-zinc-400">
+                  Peso na Média: <strong className="text-white">{weight}%</strong>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="text-blue-400 hover:text-blue-300 font-medium ios-pressable"
+              >
+                Ajustar Peso
+              </button>
             </div>
           </div>
 

@@ -9,12 +9,14 @@ export interface DomainItem {
 
 export type GradeClassification = 'excelente' | 'bom' | 'suficiente' | 'insuficiente';
 
+export type EvaluationType = 'teste' | 'questao-aula' | 'trabalho' | 'exame' | 'outro';
+
 export interface SchoolTest {
   id: string;
   title: string;
   subject: string;
   totalScale: number;
-  weight: number; // percentage in the subject average (e.g. 25%)
+  weight: number; // percentage in the subject average (e.g. 70% or 15%)
   mode: EvaluationMode;
   domains: DomainItem[];
   obtainedPoints: number;
@@ -24,6 +26,7 @@ export interface SchoolTest {
   term: string; // e.g. "1º Período", "2º Período", "3º Período", "1º Semestre", etc.
   date: string;
   notes?: string;
+  type?: EvaluationType;
 }
 
 export interface SubjectStats {
@@ -36,8 +39,6 @@ export interface SubjectStats {
   totalWeight: number;
   tests: SchoolTest[];
 }
-
-export type EvaluationType = 'teste' | 'exame' | 'questao-aula' | 'trabalho';
 
 export interface UpcomingEvaluation {
   id: string;
@@ -76,4 +77,3 @@ export interface UniversityCourse {
   examsWeightPct: number; // e.g. 50, 40, 35
   websiteUrl?: string;
 }
-

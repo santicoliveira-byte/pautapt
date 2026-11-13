@@ -1,4 +1,4 @@
-import { GradeClassification, SchoolTest, SubjectStats } from '../types';
+import { EvaluationType, GradeClassification, SchoolTest, SubjectStats } from '../types';
 
 export const ANNUAL_12TH_SUBJECTS = [
   'Química',
@@ -57,6 +57,135 @@ export const TERMS_LIST = [
   '2º Semestre',
   'Ano Letivo Completo',
 ];
+
+export interface EvaluationTypeConfig {
+  id: EvaluationType;
+  label: string;
+  shortLabel: string;
+  defaultWeight: number; // percentagem sugerida (ex: 70% teste, 15% questionário)
+  description: string;
+  badgeClass: {
+    bg: string;
+    text: string;
+    border: string;
+  };
+}
+
+export const EVALUATION_TYPE_CONFIGS: Record<EvaluationType, EvaluationTypeConfig> = {
+  teste: {
+    id: 'teste',
+    label: 'Teste Sumativo',
+    shortLabel: 'Teste',
+    defaultWeight: 70,
+    description: 'Momento de avaliação principal (maior peso)',
+    badgeClass: {
+      bg: 'bg-blue-500/15',
+      text: 'text-blue-400',
+      border: 'border-blue-500/30',
+    },
+  },
+  'questao-aula': {
+    id: 'questao-aula',
+    label: 'Questionário / Questão-Aula',
+    shortLabel: 'Questionário',
+    defaultWeight: 15,
+    description: 'Mini-teste, questionário ou ficha rápida (menor peso)',
+    badgeClass: {
+      bg: 'bg-purple-500/15',
+      text: 'text-purple-400',
+      border: 'border-purple-500/30',
+    },
+  },
+  trabalho: {
+    id: 'trabalho',
+    label: 'Trabalho / Projeto',
+    shortLabel: 'Trabalho',
+    defaultWeight: 20,
+    description: 'Relatório, trabalho de grupo ou individual',
+    badgeClass: {
+      bg: 'bg-amber-500/15',
+      text: 'text-amber-400',
+      border: 'border-amber-500/30',
+    },
+  },
+  exame: {
+    id: 'exame',
+    label: 'Exame / Prova Global',
+    shortLabel: 'Exame',
+    defaultWeight: 50,
+    description: 'Exame nacional ou prova de equivalência',
+    badgeClass: {
+      bg: 'bg-emerald-500/15',
+      text: 'text-emerald-400',
+      border: 'border-emerald-500/30',
+    },
+  },
+  outro: {
+    id: 'outro',
+    label: 'Outro / Personalizado',
+    shortLabel: 'Outro',
+    defaultWeight: 25,
+    description: 'Outro elemento avaliativo ou ponderação livre',
+    badgeClass: {
+      bg: 'bg-zinc-500/15',
+      text: 'text-zinc-300',
+      border: 'border-zinc-500/30',
+    },
+  },
+};
+
+export const COMMON_WEIGHT_PRESETS = [10, 15, 20, 25, 30, 40, 50, 70, 80];
+
+/**
+ * Deteta automaticamente o tipo de avaliação a partir do título
+ */
+export function detectEvaluationType(title: string): EvaluationType {
+  const lower = (title || '').toLowerCase();
+  if (
+    lower.includes('question') ||
+    lower.includes('questão') ||
+    lower.includes('questao') ||
+    lower.includes('mini-teste') ||
+    lower.includes('miniteste') ||
+    lower.includes('quiz') ||
+    lower.includes('ficha')
+  ) {
+    return 'questao-aula';
+  }
+  if (
+    lower.includes('trabalho') ||
+    lower.includes('projeto') ||
+    lower.includes('relatório') ||
+    lower.includes('relatorio') ||
+    lower.includes('apresentação') ||
+    lower.includes('apresentacao')
+  ) {
+    return 'trabalho';
+  }
+  if (
+    lower.includes('exame') ||
+    lower.includes('prova global') ||
+    lower.includes('frequência') ||
+    lower.includes('frequencia')
+  ) {
+    return 'exame';
+  }
+  return 'teste';
+}
+
+/**
+ * Retorna o peso efetivo de um teste, corrigindo automaticamente o bug legado de peso = 1
+ */
+export function getEffectiveWeight(test: SchoolTest): number {
+  if (test.weight !== undefined && test.weight > 1) {
+    return test.weight;
+  }
+  const type = test.type || detectEvaluationType(test.title);
+  if (test.weight === 1 || !test.weight) {
+    return EVALUATION_TYPE_CONFIGS[type]?.defaultWeight || 70;
+  }
+  return test.weight;
+}
 
 /**
  * Converte qualquer cotação para a escala oficial de 0 a 20 valores
@@ -134,7 +263,7 @@ export function getClassificationBadgeStyle(classification: GradeClassification)
 }
 
 /**
- * Calcula estatísticas agrupadas por disciplina
+ * Calcula estatísticas agrupadas por disciplina com médias ponderadas corretas
  */
 export function calculateSubjectStats(tests: SchoolTest[]): Record<string, SubjectStats> {
   const grouped: Record<string, SchoolTest[]> = {};
@@ -158,7 +287,7 @@ export function calculateSubjectStats(tests: SchoolTest[]): Record<string, Subje
 
     subjectTests.forEach((t) => {
       sumGrades += t.grade20;
-      const w = t.weight > 0 ? t.weight : 1;
+      const w = getEffectiveWeight(t);
       weightedSum += t.grade20 * w;
       totalWeight += w;
 
@@ -186,7 +315,7 @@ export function calculateSubjectStats(tests: SchoolTest[]): Record<string, Subje
  * targetAverage: média desejada (ex: 16.0)
  * currentWeightedSum: soma ponderada atual
  * currentTotalWeight: peso total atual
- * nextWeight: peso do próximo teste (ex: 30)
+ * nextWeight: peso do próximo teste (ex: 70 ou 30)
  */
 export function simulateRequiredGrade(
   currentWeightedSum: number,

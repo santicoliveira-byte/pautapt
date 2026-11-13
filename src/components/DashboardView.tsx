@@ -3,6 +3,9 @@ import { SchoolTest, UpcomingEvaluation } from '../types';
 import {
   calculateSubjectStats,
   getClassificationBadgeStyle,
+  getEffectiveWeight,
+  detectEvaluationType,
+  EVALUATION_TYPE_CONFIGS,
 } from '../utils/gradeUtils';
 import { EvolutionChart } from './EvolutionChart';
 import { UpcomingCountdownHero } from './UpcomingCountdownHero';
@@ -54,8 +57,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   let lowest = 20;
 
   tests.forEach((t) => {
-    overallSum += t.grade20 * (t.weight || 1);
-    overallWeight += t.weight || 1;
+    const w = getEffectiveWeight(t);
+    overallSum += t.grade20 * w;
+    overallWeight += w;
     if (t.grade20 >= 9.5) positiveTestsCount++;
     if (t.grade20 > highest) highest = t.grade20;
     if (t.grade20 < lowest) lowest = t.grade20;
@@ -291,6 +295,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 day: '2-digit',
                 month: 'short',
               });
+              const evalType = test.type || detectEvaluationType(test.title);
+              const typeCfg = EVALUATION_TYPE_CONFIGS[evalType];
 
               return (
                 <div
@@ -315,6 +321,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200">
                           {test.subject}
                         </span>
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border ${typeCfg.badgeClass.bg} ${typeCfg.badgeClass.text} ${typeCfg.badgeClass.border}`}>
+                          {typeCfg.shortLabel}
+                        </span>
                         <span className="text-[11px] text-zinc-400 flex items-center gap-1">
                           <Calendar className="w-3 h-3 text-zinc-500" />
                           {formattedDate}
@@ -323,8 +332,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <h4 className="text-xs font-medium text-white truncate max-w-[200px]">
                         {test.title}
                       </h4>
-                      <p className="text-[10px] text-zinc-500">
-                        {test.obtainedPoints} / {test.totalScale} pts ({test.percentage.toFixed(0)}%)
+                      <p className="text-[10px] text-zinc-500 flex items-center gap-1.5">
+                        <span>{test.obtainedPoints} / {test.totalScale} pts ({test.percentage.toFixed(0)}%)</span>
+                        <span>•</span>
+                        <span className="text-blue-400 font-semibold">Peso: {test.weight}%</span>
                       </p>
                     </div>
                   </div>

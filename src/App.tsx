@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolTest, UpcomingEvaluation } from './types';
+import { EvaluationType, SchoolTest, UpcomingEvaluation } from './types';
 import {
   loadSavedTests,
   saveTests,
@@ -78,7 +78,8 @@ export const App: React.FC = () => {
       title: item.title,
       subject: item.subject,
       totalScale: item.totalScale || 200,
-      weight: item.weight || 25,
+      weight: item.weight || (item.type === 'questao-aula' ? 15 : 70),
+      type: item.type,
       mode: 'domains',
       domains: [
         { id: '1', name: 'Domínio 1', maxScore: (item.totalScale || 200) / 2, obtainedScore: 0 },
@@ -114,6 +115,33 @@ export const App: React.FC = () => {
     }, 400);
   };
 
+  // Handle direct weight and type update from modal
+  const handleUpdateTestWeight = (testId: string, newWeight: number, newType?: EvaluationType) => {
+    setTests((prev) =>
+      prev.map((t) => {
+        if (t.id === testId) {
+          return {
+            ...t,
+            weight: newWeight,
+            ...(newType ? { type: newType } : {}),
+          };
+        }
+        return t;
+      })
+    );
+    if (selectedTestModal?.id === testId) {
+      setSelectedTestModal((prev) =>
+        prev
+          ? {
+              ...prev,
+              weight: newWeight,
+              ...(newType ? { type: newType } : {}),
+            }
+          : null
+      );
+    }
+  };
+
   // Delete test
   const handleDeleteTest = (id: string) => {
     setTests((prev) => prev.filter((t) => t.id !== id));
@@ -136,7 +164,8 @@ export const App: React.FC = () => {
       title: '',
       subject: subjectName,
       totalScale: 200,
-      weight: 30,
+      weight: 70,
+      type: 'teste',
       mode: 'domains',
       domains: [
         { id: '1', name: 'Domínio 1', maxScore: 100, obtainedScore: 0 },
@@ -260,6 +289,7 @@ export const App: React.FC = () => {
         onClose={() => setSelectedTestModal(null)}
         onDelete={handleDeleteTest}
         onEdit={handleEditTest}
+        onUpdateWeight={handleUpdateTestWeight}
       />
 
       {/* Printable Report / Pauta Escolar Modal */}
