@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SchoolTest, UniversityCourse } from '../types';
 import { calculateSubjectStats, getSubjectDurationWeight } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Sparkles,
   Search,
+  Target,
 } from 'lucide-react';
 
 interface HigherEducationSimulatorProps {
@@ -68,6 +69,71 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
   );
 
   const finalScore20 = Number((finalScore200 / 10).toFixed(2));
+
+  // Inverse Simulator Target Cutoff State (defaults to targetCourse.lastCutoff200 or 165.0)
+  const [targetCutoff, setTargetCutoff] = useState<number>(() =>
+    targetCourse ? targetCourse.lastCutoff200 : 165.0
+  );
+
+  useEffect(() => {
+    if (targetCourse) {
+      setTargetCutoff(targetCourse.lastCutoff200);
+    }
+  }, [targetCourseId]);
+
+  // Inverse Calculation:
+  // targetCutoff = (secondaryScore200 * secondaryWeightPct + requiredExam * examWeightPct) / 100
+  // requiredExam = (targetCutoff * 100 - secondaryScore200 * secondaryWeightPct) / examWeightPct
+  const rawInverseRequiredExam =
+    examWeightPct > 0
+      ? (targetCutoff * 100 - secondaryScore200 * secondaryWeightPct) / examWeightPct
+      : 0;
+  const inverseRequiredExam = Number(rawInverseRequiredExam.toFixed(1));
+
+  // If 2 exams, what is needed on Exam 2 given Exam 1:
+  const exam2RequiredCalculated = Number((2 * rawInverseRequiredExam - exam1Score).toFixed(1));
+
+  const getFeasibility = (score: number) => {
+    if (score > 200) {
+      return {
+        label: 'Impossível (>200 pts)',
+        color: 'text-red-400 bg-red-500/10 border-red-500/30',
+        description:
+          'Mesmo com 200 pontos no exame, a tua média do secundário não alcança a nota de corte.',
+      };
+    }
+    if (score > 180) {
+      return {
+        label: 'Meta de Excelência (18+ val)',
+        color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+        description:
+          'Requer preparação intensiva e domínio total dos critérios de correção IAVE.',
+      };
+    }
+    if (score > 150) {
+      return {
+        label: 'Meta Exigente (15 a 18 val)',
+        color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+        description:
+          'Perfeitamente alcançável com estudo consistente e exames de anos anteriores.',
+      };
+    }
+    if (score >= 95) {
+      return {
+        label: 'Ao Teu Alcance (9.5 a 15 val)',
+        color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+        description: 'Muito acessível! Precisas apenas de uma nota média para assegurar a vaga.',
+      };
+    }
+    return {
+      label: 'Basta Mínimo Legal (95 pts)',
+      color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+      description:
+        'A tua média do secundário já cobre a meta. Precisas apenas dos 95 pontos mínimos da DGES.',
+    };
+  };
+
+  const feasibility = getFeasibility(inverseRequiredExam);
 
   const handleCelebrate = () => {
     triggerHaptic('success');
@@ -131,6 +197,7 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
       <TargetCourseCard
         course={targetCourse}
         userScore200={finalScore200}
+        secondaryScore200={secondaryScore200}
         onOpenSearch={() => setIsSearchOpen(true)}
         onApplyCourseFormula={(secWeight) => setSecondaryWeightPct(secWeight)}
         onClearTarget={handleClearTarget}
@@ -317,6 +384,105 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
                 onChange={(e) => setExam2Score(Number(e.target.value))}
                 className="w-full accent-purple-500 cursor-pointer"
               />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Inverse Exam Score Calculator: Que nota preciso no Exame? */}
+      <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 border border-purple-500/30 rounded-3xl p-5 shadow-ios-card space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+              <Target className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                Simulador Inverso: Que nota preciso no Exame?
+              </h3>
+              <p className="text-[11px] text-zinc-400">
+                Calcula a nota necessária nas provas de ingresso para atingir a meta
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Target Admission Cutoff Input */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-zinc-400 font-medium">Nota de Candidatura Alvo:</span>
+            <span className="font-extrabold text-purple-400 text-sm">
+              {targetCutoff.toFixed(1)} pts ({(targetCutoff / 10).toFixed(2)} val)
+            </span>
+          </div>
+          <input
+            type="range"
+            min="100"
+            max="200"
+            step="0.5"
+            value={targetCutoff}
+            onChange={(e) => setTargetCutoff(Number(e.target.value))}
+            className="w-full accent-purple-500 cursor-pointer"
+          />
+          {targetCourse && (
+            <div className="flex justify-between items-center text-[10px] text-zinc-500">
+              <span>Curso: {targetCourse.name} ({targetCourse.shortInstitution})</span>
+              <button
+                type="button"
+                onClick={() => setTargetCutoff(targetCourse.lastCutoff200)}
+                className="text-purple-400 hover:underline font-semibold"
+              >
+                Repor {targetCourse.lastCutoff200} pts
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Result of Required Exam Score */}
+        <div className="p-3.5 rounded-2xl bg-zinc-950/70 border border-white/5 space-y-2">
+          <div className="flex items-baseline justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-zinc-400 block">
+                {hasExam2 ? 'Média Necessária nas 2 Provas' : `Nota Necessária em ${exam1Name}`}
+              </span>
+              <span className="text-3xl font-black text-white">
+                {inverseRequiredExam > 200
+                  ? '> 200'
+                  : inverseRequiredExam <= 95
+                  ? '95.0'
+                  : inverseRequiredExam.toFixed(1)}
+                <span className="text-xs text-zinc-500 font-semibold ml-1">pts</span>
+              </span>
+              <span className="text-xs text-purple-400 font-bold ml-2">
+                {inverseRequiredExam > 200
+                  ? '(Inacessível)'
+                  : inverseRequiredExam <= 95
+                  ? '(9.5 val - mínimo DGES)'
+                  : `(${(inverseRequiredExam / 10).toFixed(1)} valores)`}
+              </span>
+            </div>
+
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${feasibility.color}`}>
+              {feasibility.label}
+            </span>
+          </div>
+
+          <p className="text-[11px] text-zinc-400 leading-snug">
+            {feasibility.description}
+          </p>
+
+          {hasExam2 && (
+            <div className="pt-2 border-t border-white/5 text-[11px] text-zinc-400 flex justify-between items-center">
+              <span>Se tirares {exam1Score} pts na 1ª prova:</span>
+              <span className="font-bold text-white">
+                Precisas de{' '}
+                {exam2RequiredCalculated > 200
+                  ? '> 200 pts'
+                  : exam2RequiredCalculated <= 95
+                  ? '95.0 pts (9.5 val)'
+                  : `${exam2RequiredCalculated.toFixed(1)} pts (${(exam2RequiredCalculated / 10).toFixed(1)} val)`}{' '}
+                na 2ª
+              </span>
             </div>
           )}
         </div>

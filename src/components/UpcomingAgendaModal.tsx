@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UpcomingEvaluation, EvaluationType } from '../types';
 import { triggerHaptic } from '../utils/haptics';
-import { generateICS, downloadICSFile } from '../utils/calendar';
+import { generateICS, downloadICSFile, generateGoogleCalendarUrl } from '../utils/calendar';
 import { PORTUGAL_DEFAULT_SUBJECTS, ANNUAL_12TH_SUBJECTS } from '../utils/gradeUtils';
 import {
   Calendar,
@@ -444,14 +444,24 @@ export const UpcomingAgendaModal: React.FC<UpcomingAgendaModalProps> = ({
                               <p className="text-xs text-zinc-300">{item.title}</p>
                             </div>
 
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <a
+                                href={generateGoogleCalendarUrl(item)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 ios-pressable transition-colors flex items-center gap-1 text-[10px] font-bold"
+                                title="Adicionar diretamente ao Google Calendar"
+                              >
+                                <span>Google Cal</span>
+                              </a>
                               <button
                                 type="button"
                                 onClick={() => handleExportSingle(item)}
-                                className="p-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 ios-pressable transition-colors"
-                                title="Descarregar evento (.ics) para Calendário"
+                                className="px-2 py-1 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/20 ios-pressable transition-colors flex items-center gap-1 text-[10px] font-bold"
+                                title="Descarregar ficheiro .ics (Apple Calendar / Outlook / Telemóvel)"
                               >
-                                <Download className="w-3.5 h-3.5" />
+                                <Download className="w-3 h-3 text-blue-400" />
+                                <span>.ics</span>
                               </button>
                               <button
                                 type="button"

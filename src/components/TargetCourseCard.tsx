@@ -12,6 +12,7 @@ import {
 interface TargetCourseCardProps {
   course: UniversityCourse | null;
   userScore200: number;
+  secondaryScore200?: number;
   onOpenSearch: () => void;
   onApplyCourseFormula?: (secWeight: number) => void;
   onClearTarget?: () => void;
@@ -20,6 +21,7 @@ interface TargetCourseCardProps {
 export const TargetCourseCard: React.FC<TargetCourseCardProps> = ({
   course,
   userScore200,
+  secondaryScore200,
   onOpenSearch,
   onApplyCourseFormula,
   onClearTarget,
@@ -68,6 +70,46 @@ export const TargetCourseCard: React.FC<TargetCourseCardProps> = ({
 
   // Percentage of progress towards cutoff
   const progressPct = Math.min(Math.max((userScore200 / course.lastCutoff200) * 100, 0), 100);
+
+  // Required Exam calculation (Inverse formula: TargetCutoff vs Secondary Average)
+  let requiredExamPoints: number | null = null;
+  let examFeasibility: { label: string; color: string } | null = null;
+
+  if (secondaryScore200 !== undefined && secondaryScore200 > 0) {
+    const examWeightPct = 100 - course.secondaryWeightPct;
+    if (examWeightPct > 0) {
+      const rawRequired =
+        (course.lastCutoff200 * 100 - secondaryScore200 * course.secondaryWeightPct) /
+        examWeightPct;
+      requiredExamPoints = Number(rawRequired.toFixed(1));
+      if (requiredExamPoints > 200) {
+        examFeasibility = {
+          label: 'Impossível (>200 pts)',
+          color: 'text-red-400 bg-red-500/10 border-red-500/30',
+        };
+      } else if (requiredExamPoints > 180) {
+        examFeasibility = {
+          label: 'Exige 18+ valores',
+          color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+        };
+      } else if (requiredExamPoints > 150) {
+        examFeasibility = {
+          label: 'Exige 15 a 18 val',
+          color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+        };
+      } else if (requiredExamPoints >= 95) {
+        examFeasibility = {
+          label: 'Acessível (9.5 a 15)',
+          color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+        };
+      } else {
+        examFeasibility = {
+          label: 'Basta mín. 95 pts',
+          color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+        };
+      }
+    }
+  }
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 p-4 border border-purple-500/35 shadow-ios-card space-y-3">
@@ -187,6 +229,27 @@ export const TargetCourseCard: React.FC<TargetCourseCardProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Inverse Exam Requirement */}
+        {requiredExamPoints !== null && examFeasibility !== null && (
+          <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 text-zinc-300">
+              <span className="text-[10px] uppercase font-bold text-purple-400">
+                Precisas no Exame:
+              </span>
+              <span className="font-extrabold text-white">
+                {requiredExamPoints > 200
+                  ? '> 200 pts'
+                  : requiredExamPoints <= 95
+                  ? '95.0 pts (9.5 val)'
+                  : `${requiredExamPoints.toFixed(1)} pts (${(requiredExamPoints / 10).toFixed(1)} val)`}
+              </span>
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${examFeasibility.color}`}>
+              {examFeasibility.label}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Provas & Fast Formula Button */}

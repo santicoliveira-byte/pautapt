@@ -33,6 +33,14 @@ export interface TableSubject {
   examGrade: number | null; // 0-200 pontos
   acessoSuperior: boolean; // "Acesso ao Ensino Superior" Sim / Não (Prova de Ingresso)
   hasNationalExam: boolean; // false for Educação Física
+  isMelhoria?: boolean; // Candidato a melhoria de classificação
+}
+
+export interface CFDResult {
+  value: number | null;
+  regularValue: number | null;
+  isMelhoriaApplied: boolean;
+  gain: number;
 }
 
 const STORAGE_KEY_TABLE = 'pautapt_secondary_table_v4';
@@ -41,6 +49,7 @@ const STORAGE_KEY_WEIGHT_PRESET = 'pautapt_cnaes_weight_preset_v4';
 const STORAGE_KEY_ROUNDING = 'pautapt_rounding_mode_v4';
 const STORAGE_KEY_EXAM_WEIGHT = 'pautapt_exam_weight_v4';
 const STORAGE_KEY_CFC_WEIGHT_MODE = 'pautapt_cfc_weight_mode_v4';
+const STORAGE_KEY_MELHORIA_MODE = 'pautapt_melhoria_mode_v4';
 
 // Default Portuguese curriculum matching the official template
 const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
@@ -323,6 +332,17 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
     }
   });
 
+  // Regra Oficial de Melhoria de Nota por Exame Nacional: o exame substitui a CFD se for superior
+  const [melhoriaMode, setMelhoriaMode] = useState<'auto' | 'off'>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_MELHORIA_MODE);
+      if (saved === 'off') return 'off';
+      return 'auto';
+    } catch {
+      return 'auto';
+    }
+  });
+
   // DGES Courses Modal State
   const [isDgesModalOpen, setIsDgesModalOpen] = useState(false);
   const [targetCourseId, setTargetCourseId] = useState<string | null>(() => loadTargetCourseId());
@@ -404,6 +424,14 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
       // ignore
     }
   }, [cfcWeightMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_MELHORIA_MODE, melhoriaMode);
+    } catch {
+      // ignore
+    }
+  }, [melhoriaMode]);
 
   // AUTO-SYNC: Synchronize annual subjects immediately from the tests in the app!
   useEffect(() => {
@@ -537,29 +565,37 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
     return { value: Number(raw.toFixed(1)), isProvisional };
   };
 
-  // Helper: compute CFD (Classificação Final da Disciplina)
-  const computeCFD = (s: TableSubject): number | null => {
+  // Helper: compute CFD (Classificação Final da Disciplina) com suporte a Melhoria de Nota
+  const computeCFD = (s: TableSubject): CFDResult => {
     const { value: ci } = computeCI(s);
-    if (ci === null) return null;
+    if (ci === null) {
+      return { value: null, regularValue: null, isMelhoriaApplied: false, gain: 0 };
+    }
 
     if (!s.enConta || s.examGrade === null || s.examGrade === undefined) {
-      return ci;
+      return { value: ci, regularValue: ci, isMelhoriaApplied: false, gain: 0 };
     }
 
     // Regra Oficial do Ensino Secundário em Portugal (Decreto-Lei n.º 62/2023):
-    // 1) A nota do Exame Nacional (escala de 0 a 200 pontos) arredonda primeiro às unidades na escala de 0 a 20 valores
-    // Exemplo: 145 pts -> 14.5 -> arredonda para 15 valores
+    // 1) A nota do Exame Nacional arredonda às unidades na escala de 0 a 20 valores
     const examUnits = Math.round(s.examGrade / 10);
 
-    // 2) Aplica-se a ponderação oficial de 25% Exame e 75% Interna (ou 30%/70% se selecionado)
-    // Exemplo: 0.75 * 13 + 0.25 * 15 = 9.75 + 3.75 = 13.5 -> arredonda para 14 valores!
+    // 2) Aplica-se a ponderação regular de 25% Exame e 75% Interna (ou 30%/70% se selecionado)
     const weight = examWeight / 100;
     const rawCFD = (1 - weight) * ci + weight * examUnits;
+    const regularValue =
+      roundingMode === 'official' ? Math.round(rawCFD) : Number(rawCFD.toFixed(1));
 
-    if (roundingMode === 'official') {
-      return Math.round(rawCFD);
+    // Regra Oficial de Melhoria de Classificação:
+    // Se a melhoria estiver ativa e a nota do exame (arredondada a unidades) for superior à CFD regular:
+    // O exame substitui a classificação final da disciplina (vale 100% da disciplina para efeitos de melhoria).
+    const canImprove = melhoriaMode === 'auto' || s.isMelhoria;
+    if (canImprove && examUnits > regularValue) {
+      const gain = Number((examUnits - regularValue).toFixed(1));
+      return { value: examUnits, regularValue, isMelhoriaApplied: true, gain };
     }
-    return Number(rawCFD.toFixed(1));
+
+    return { value: regularValue, regularValue, isMelhoriaApplied: false, gain: 0 };
   };
 
   // Weight helper by subject duration (Trienal: 3x, Bienal: 2x, Anual: 1x)
@@ -581,27 +617,40 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
   // Ponderação oficial: Disciplinas trienais peso 3, bienais peso 2, anuais peso 1
   const evaluatedSubjectsWithCFD = subjects
     .map((s) => {
-      const cfd = computeCFD(s);
+      const cfdInfo = computeCFD(s);
       const weight = getSubjectTypeWeight(s.type);
-      return { subject: s, cfd, weight };
+      return { subject: s, cfdInfo, weight };
     })
     .filter(
-      (item): item is { subject: TableSubject; cfd: number; weight: number } =>
-        item.cfd !== null
+      (
+        item
+      ): item is {
+        subject: TableSubject;
+        cfdInfo: CFDResult;
+        weight: number;
+      } => item.cfdInfo.value !== null
     );
 
   const totalCfdWeights = evaluatedSubjectsWithCFD.reduce((acc, curr) => acc + curr.weight, 0);
   const weightedSum = evaluatedSubjectsWithCFD.reduce(
-    (acc, curr) => acc + curr.cfd * curr.weight,
+    (acc, curr) => acc + (curr.cfdInfo.value || 0) * curr.weight,
+    0
+  );
+  const regularWeightedSum = evaluatedSubjectsWithCFD.reduce(
+    (acc, curr) => acc + (curr.cfdInfo.regularValue ?? curr.cfdInfo.value ?? 0) * curr.weight,
     0
   );
 
   const finalCFC =
-    totalCfdWeights > 0
-      ? Number((weightedSum / totalCfdWeights).toFixed(2))
-      : 0;
+    totalCfdWeights > 0 ? Number((weightedSum / totalCfdWeights).toFixed(2)) : 0;
 
-  const validCFDs = evaluatedSubjectsWithCFD.map((item) => item.cfd);
+  const regularCFC =
+    totalCfdWeights > 0 ? Number((regularWeightedSum / totalCfdWeights).toFixed(2)) : 0;
+
+  const cfcMelhoriaGain = Number((finalCFC - regularCFC).toFixed(2));
+  const hasAnyMelhoria = evaluatedSubjectsWithCFD.some((item) => item.cfdInfo.isMelhoriaApplied);
+
+  const validCFDs = evaluatedSubjectsWithCFD.map((item) => item.cfdInfo.value as number);
 
   const finalCFCPoints200 = Number((finalCFC * 10).toFixed(1));
 
@@ -698,15 +747,30 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 
   return (
     <div className="w-full pb-28 pt-1 space-y-4 animate-fade-in">
-      {/* Top Notification: 12th year grades + 3:2:1 duration weighting + Exam 25% rounding rule */}
+      {/* Top Notification: 12th year grades + 3:2:1 duration weighting + Exam 25% + Melhoria de Nota */}
       <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-blue-300">
         <div className="flex items-start gap-2">
           <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
           <span>
-            <strong>Ponderação Oficial das Disciplinas:</strong> Trienais valem <strong>3x</strong>, Bienais valem <strong>2x</strong> e Anuais valem <strong>1x</strong>. Na CFD aplica-se <strong>{examWeight}% exame</strong> (arredondado a unidades) + <strong>{100 - examWeight}% interna</strong>.
+            <strong>Ponderação Oficial:</strong> Trienais <strong>3x</strong>, Bienais <strong>2x</strong> e Anuais <strong>1x</strong>. A CFD tem <strong>{examWeight}% exame</strong> + <strong>{100 - examWeight}% interna</strong> com regra oficial de melhoria (o exame substitui a CFD se for superior).
           </span>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              setMelhoriaMode(melhoriaMode === 'auto' ? 'off' : 'auto');
+            }}
+            title="Alternar modo automático de melhoria de nota por exame"
+            className={`text-[10px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors ${
+              melhoriaMode === 'auto'
+                ? 'bg-emerald-500/30 text-emerald-200 border-emerald-400/40'
+                : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white'
+            }`}
+          >
+            Melhoria: {melhoriaMode === 'auto' ? 'ON' : 'OFF'}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -720,7 +784,7 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                 : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:text-white'
             }`}
           >
-            {cfcWeightMode === 'duration' ? 'Ponderação 3:2:1' : 'Média Simples'}
+            {cfcWeightMode === 'duration' ? '3:2:1' : 'Simples'}
           </button>
           <button
             type="button"
@@ -812,6 +876,23 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
             type="button"
             onClick={() => {
               triggerHaptic('light');
+              setMelhoriaMode(melhoriaMode === 'auto' ? 'off' : 'auto');
+            }}
+            title="Regra Oficial de Melhoria de Nota por Exame Nacional: o exame substitui a CFD se for superior"
+            className={`text-[10px] font-semibold px-2 py-1.5 rounded-xl border flex items-center gap-1 ios-pressable ${
+              melhoriaMode === 'auto'
+                ? 'bg-emerald-600/20 border-emerald-500/30 text-emerald-300'
+                : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white'
+            }`}
+          >
+            <span className="font-bold">Melhoria</span>
+            <span>{melhoriaMode === 'auto' ? 'ON' : 'OFF'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
               setRoundingMode(roundingMode === 'official' ? 'decimal' : 'official');
             }}
             title="Alternar entre arredondamento oficial às unidades ou com décimas"
@@ -896,6 +977,16 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
               {cfcWeightMode === 'duration' ? 'Oficial 3:2:1 (3x • 2x • 1x)' : 'Média Simples'}
             </span>
           </div>
+          {hasAnyMelhoria && cfcMelhoriaGain > 0 && (
+            <div className="mt-1.5 px-2 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-between text-[10px] text-emerald-300">
+              <span className="font-semibold flex items-center gap-1">
+                <span>✨ Melhoria por Exame:</span>
+              </span>
+              <span className="font-extrabold text-emerald-400">
+                +{cfcMelhoriaGain.toFixed(2)} val no CFC (base: {regularCFC.toFixed(2)})
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Card 2: Provas de Ingresso (PI) */}
@@ -1077,7 +1168,8 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                 const grade12FromTests = get12thGradeFromTests(s);
 
                 const { value: ci, isProvisional } = computeCI(s);
-                const cfd = computeCFD(s);
+                const cfdInfo = computeCFD(s);
+                const cfd = cfdInfo.value;
 
                 return (
                   <tr key={s.id} className="hover:bg-white/[0.02] transition-colors">
@@ -1294,14 +1386,32 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                     {/* Column 8: CFD (Classificação Final da Disciplina) */}
                     <td className="px-2 py-2 text-center bg-blue-500/5">
                       <div
-                        className="h-8 px-2 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-black text-white text-xs cursor-default"
+                        className={`h-8 px-2 rounded-xl border flex flex-col items-center justify-center font-black text-xs cursor-default transition-all ${
+                          cfdInfo.isMelhoriaApplied
+                            ? 'bg-emerald-600/25 border-emerald-500/40 text-emerald-300'
+                            : 'bg-blue-600/20 border-blue-500/30 text-white'
+                        }`}
                         title={
-                          s.enConta && s.examGrade !== null && ci !== null
-                            ? `${100 - examWeight}% Interna (${ci}) + ${examWeight}% Exame arredondado (${Math.round(s.examGrade / 10)}) = ${cfd}`
+                          cfdInfo.isMelhoriaApplied
+                            ? `Melhoria de Nota Aplicada: O Exame (${Math.round(s.examGrade! / 10)} val) substitui a CFD regular (${cfdInfo.regularValue} val) por ser superior! (+${cfdInfo.gain} valores)`
+                            : s.enConta && s.examGrade !== null && ci !== null
+                            ? `${100 - examWeight}% Interna (${ci}) + ${examWeight}% Exame (${Math.round(s.examGrade / 10)}) = ${cfd}`
                             : `CFD = CI = ${ci}`
                         }
                       >
-                        {cfd !== null ? cfd : '—'}
+                        <div className="flex items-center gap-1">
+                          <span>{cfd !== null ? cfd : '—'}</span>
+                          {cfdInfo.isMelhoriaApplied && (
+                            <span className="text-[9px] font-black text-emerald-400">
+                              +{cfdInfo.gain}
+                            </span>
+                          )}
+                        </div>
+                        {cfdInfo.isMelhoriaApplied && (
+                          <span className="text-[7px] uppercase font-bold text-emerald-400/90 leading-none">
+                            Melhoria
+                          </span>
+                        )}
                       </div>
                     </td>
 

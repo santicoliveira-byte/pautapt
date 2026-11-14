@@ -1,7 +1,7 @@
 import React from 'react';
 import { UpcomingEvaluation } from '../types';
 import { triggerHaptic } from '../utils/haptics';
-import { downloadICSFile, generateICS } from '../utils/calendar';
+import { downloadICSFile, generateICS, generateGoogleCalendarUrl } from '../utils/calendar';
 import {
   Calendar,
   Clock,
@@ -179,15 +179,27 @@ export const UpcomingCountdownHero: React.FC<UpcomingCountdownHeroProps> = ({
         </div>
 
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-          <button
-            type="button"
-            onClick={(e) => handleExportICS(e, nextTest)}
-            className="p-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center gap-1 ios-pressable transition-colors"
-            title="Adicionar ao Calendário (.ics)"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="text-[10px]">.ICS</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <a
+              href={generateGoogleCalendarUrl(nextTest)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="px-2 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-[10px] font-bold flex items-center gap-1 ios-pressable transition-colors"
+              title="Adicionar diretamente ao Google Calendar"
+            >
+              <span>Google</span>
+            </a>
+            <button
+              type="button"
+              onClick={(e) => handleExportICS(e, nextTest)}
+              className="px-2 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-[10px] font-bold flex items-center gap-1 ios-pressable transition-colors"
+              title="Descarregar ficheiro .ics (Apple Calendar / Outlook / Telemóvel)"
+            >
+              <Download className="w-3 h-3 text-blue-400" />
+              <span>.ics</span>
+            </button>
+          </div>
           <div className="text-[10px] text-zinc-500 flex items-center gap-0.5">
             <span>Ver agenda</span>
             <ChevronRight className="w-3 h-3" />

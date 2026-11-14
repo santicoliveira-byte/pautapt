@@ -146,3 +146,63 @@ export function downloadICSFile(filename: string, icsContent: string): void {
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/**
+ * Generates direct Google Calendar Web URL to add an event with 1 click
+ */
+export function generateGoogleCalendarUrl(item: UpcomingEvaluation): string {
+  const typeLabels: Record<string, string> = {
+    teste: 'Teste',
+    exame: 'Exame Nacional',
+    'questao-aula': 'Questão-Aula',
+    trabalho: 'Apresentação / Trabalho',
+  };
+  const typeLabel = typeLabels[item.type] || 'Avaliação';
+  const title = `[${typeLabel}] ${item.subject} - ${item.title}`;
+
+  const cleanDate = item.date.replace(/-/g, '');
+  let datesParam: string;
+
+  if (item.time) {
+    const [h, m] = item.time.split(':').map(Number);
+    const startH = String(h).padStart(2, '0');
+    const startM = String(m).padStart(2, '0');
+    let endH = h + 1;
+    let endM = m + 30;
+    if (endM >= 60) {
+      endH += 1;
+      endM -= 60;
+    }
+    const endHStr = String(endH % 24).padStart(2, '0');
+    const endMStr = String(endM).padStart(2, '0');
+    datesParam = `${cleanDate}T${startH}${startM}00/${cleanDate}T${endHStr}${endMStr}00`;
+  } else {
+    const [y, mo, d] = item.date.split('-').map(Number);
+    const nextDay = new Date(Date.UTC(y, mo - 1, d + 1));
+    const nextY = nextDay.getUTCFullYear();
+    const nextM = String(nextDay.getUTCMonth() + 1).padStart(2, '0');
+    const nextD = String(nextDay.getUTCDate()).padStart(2, '0');
+    datesParam = `${cleanDate}/${nextY}${nextM}${nextD}`;
+  }
+
+  const details = [
+    `Disciplina: ${item.subject}`,
+    `Tipo: ${typeLabel}`,
+    item.weight ? `Peso na Média: ${item.weight}%` : '',
+    item.totalScale ? `Cotação: ${item.totalScale} pontos` : '',
+    item.notes ? `Notas: ${item.notes}` : '',
+    'Criado via PautaPT (https://pautapt.vercel.app)',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title,
+    dates: datesParam,
+    details: details,
+    location: 'Escola Secundária',
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
