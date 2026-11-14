@@ -345,3 +345,38 @@ export function simulateRequiredGrade(
     isPossible: rounded <= 20.0,
   };
 }
+
+/**
+ * Retorna o peso oficial por duração da disciplina no ensino secundário:
+ * - Trienais (3 anos de escolaridade): peso 3
+ * - Bienais (2 anos de escolaridade): peso 2
+ * - Anuais (1 ano de escolaridade): peso 1
+ */
+export function getSubjectDurationWeight(subjectName: string): number {
+  const lower = (subjectName || '').toLowerCase().trim();
+  const isAnnual = ANNUAL_12TH_SUBJECTS.some((a) => a.toLowerCase() === lower);
+  if (isAnnual || lower.includes('anual') || lower.includes('opção') || lower.includes('opcao')) {
+    return 1;
+  }
+
+  const trienais = [
+    'português',
+    'portugues',
+    'matemática a',
+    'matematica a',
+    'matemática b',
+    'matematica b',
+    'macs',
+    'educação física',
+    'educacao fisica',
+    'história a',
+    'historia a',
+    'desenho a',
+  ];
+  if (trienais.some((t) => lower === t || lower.startsWith(t))) {
+    return 3;
+  }
+
+  // Bienais por defeito (ex: FQ A, Bio/Geo, Filosofia, Inglês, Economia A, etc.)
+  return 2;
+}

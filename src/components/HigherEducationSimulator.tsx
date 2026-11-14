@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SchoolTest, UniversityCourse } from '../types';
-import { calculateSubjectStats } from '../utils/gradeUtils';
+import { calculateSubjectStats, getSubjectDurationWeight } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
 import { DGES_COURSES } from '../data/dgesCourses';
@@ -25,16 +25,14 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
   const stats = calculateSubjectStats(tests);
   const subjectList = Object.values(stats);
 
-  // Automatically estimate secondary average from recorded tests or passed prop
+  // Automatically estimate secondary average from recorded tests using 3:2:1 duration weighting
+  const totalWeight = subjectList.reduce((acc, curr) => acc + getSubjectDurationWeight(curr.name), 0);
+  const weightedSum = subjectList.reduce(
+    (acc, curr) => acc + curr.weightedAverage * getSubjectDurationWeight(curr.name),
+    0
+  );
   const calculatedDefault =
-    subjectList.length > 0
-      ? Number(
-          (
-            subjectList.reduce((acc, curr) => acc + curr.weightedAverage, 0) /
-            subjectList.length
-          ).toFixed(2)
-        )
-      : 15.0;
+    totalWeight > 0 ? Number((weightedSum / totalWeight).toFixed(2)) : 15.0;
 
   const [secondaryAvg, setSecondaryAvg] = useState<number>(
     initialSecondaryAverage !== undefined ? initialSecondaryAverage : calculatedDefault

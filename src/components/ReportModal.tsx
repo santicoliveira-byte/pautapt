@@ -1,6 +1,6 @@
 import React from 'react';
 import { SchoolTest } from '../types';
-import { calculateSubjectStats } from '../utils/gradeUtils';
+import { calculateSubjectStats, getSubjectDurationWeight } from '../utils/gradeUtils';
 import { X, Printer, Award } from 'lucide-react';
 
 interface ReportModalProps {
@@ -16,12 +16,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, tests
   const subjects = Object.values(stats);
 
   const totalTests = tests.length;
+  const totalWeight = subjects.reduce((acc, curr) => acc + getSubjectDurationWeight(curr.name), 0);
+  const weightedSum = subjects.reduce(
+    (acc, curr) => acc + curr.weightedAverage * getSubjectDurationWeight(curr.name),
+    0
+  );
   const overallAvg =
-    subjects.length > 0
-      ? (
-          subjects.reduce((acc, curr) => acc + curr.weightedAverage, 0) / subjects.length
-        ).toFixed(2)
-      : '0.0';
+    totalWeight > 0 ? (weightedSum / totalWeight).toFixed(2) : '0.0';
 
   const handlePrint = () => {
     window.print();
@@ -110,15 +111,25 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, tests
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 print:divide-gray-300">
-                  {subjects.map((sub) => (
-                    <tr key={sub.name}>
-                      <td className="p-2.5 font-medium text-white print:text-black">{sub.name}</td>
-                      <td className="p-2.5 text-center text-zinc-400 print:text-black">{sub.count}</td>
-                      <td className="p-2.5 text-right font-bold text-blue-400 print:text-black">
-                        {sub.weightedAverage.toFixed(1)} val
-                      </td>
-                    </tr>
-                  ))}
+                  {subjects.map((sub) => {
+                    const weight = getSubjectDurationWeight(sub.name);
+                    return (
+                      <tr key={sub.name}>
+                        <td className="p-2.5 font-medium text-white print:text-black">
+                          <div className="flex items-center justify-between gap-1">
+                            <span>{sub.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-white/5 text-zinc-400 print:text-gray-600 print:bg-gray-200">
+                              {weight}x
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-2.5 text-center text-zinc-400 print:text-black">{sub.count}</td>
+                        <td className="p-2.5 text-right font-bold text-blue-400 print:text-black">
+                          {sub.weightedAverage.toFixed(1)} val
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

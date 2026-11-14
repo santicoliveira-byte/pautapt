@@ -40,6 +40,7 @@ const STORAGE_KEY_COURSE = 'pautapt_secondary_course_v4';
 const STORAGE_KEY_WEIGHT_PRESET = 'pautapt_cnaes_weight_preset_v4';
 const STORAGE_KEY_ROUNDING = 'pautapt_rounding_mode_v4';
 const STORAGE_KEY_EXAM_WEIGHT = 'pautapt_exam_weight_v4';
+const STORAGE_KEY_CFC_WEIGHT_MODE = 'pautapt_cfc_weight_mode_v4';
 
 // Default Portuguese curriculum matching the official template
 const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
@@ -311,6 +312,17 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
     }
   });
 
+  // Ponderação oficial por duração (Decreto-Lei n.º 62/2023): Trienais contam 3x, Bienais 2x, Anuais 1x
+  const [cfcWeightMode, setCfcWeightMode] = useState<'duration' | 'simple'>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_CFC_WEIGHT_MODE);
+      if (saved === 'simple') return 'simple';
+      return 'duration';
+    } catch {
+      return 'duration';
+    }
+  });
+
   // DGES Courses Modal State
   const [isDgesModalOpen, setIsDgesModalOpen] = useState(false);
   const [targetCourseId, setTargetCourseId] = useState<string | null>(() => loadTargetCourseId());
@@ -384,6 +396,14 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
       // ignore
     }
   }, [examWeight]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_CFC_WEIGHT_MODE, cfcWeightMode);
+    } catch {
+      // ignore
+    }
+  }, [cfcWeightMode]);
 
   // AUTO-SYNC: Synchronize annual subjects immediately from the tests in the app!
   useEffect(() => {
@@ -542,15 +562,46 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
     return Number(rawCFD.toFixed(1));
   };
 
+  // Weight helper by subject duration (Trienal: 3x, Bienal: 2x, Anual: 1x)
+  const getSubjectTypeWeight = (type: SubjectType) => {
+    if (cfcWeightMode === 'simple') return 1;
+    switch (type) {
+      case 'trienal':
+        return 3;
+      case 'bienal':
+        return 2;
+      case 'anual':
+        return 1;
+      default:
+        return 1;
+    }
+  };
+
   // Overall Secondary Average (CFC - Classificação Final de Curso)
-  const validCFDs = subjects
-    .map((s) => computeCFD(s))
-    .filter((cfd): cfd is number => cfd !== null);
+  // Ponderação oficial: Disciplinas trienais peso 3, bienais peso 2, anuais peso 1
+  const evaluatedSubjectsWithCFD = subjects
+    .map((s) => {
+      const cfd = computeCFD(s);
+      const weight = getSubjectTypeWeight(s.type);
+      return { subject: s, cfd, weight };
+    })
+    .filter(
+      (item): item is { subject: TableSubject; cfd: number; weight: number } =>
+        item.cfd !== null
+    );
+
+  const totalCfdWeights = evaluatedSubjectsWithCFD.reduce((acc, curr) => acc + curr.weight, 0);
+  const weightedSum = evaluatedSubjectsWithCFD.reduce(
+    (acc, curr) => acc + curr.cfd * curr.weight,
+    0
+  );
 
   const finalCFC =
-    validCFDs.length > 0
-      ? Number((validCFDs.reduce((acc, curr) => acc + curr, 0) / validCFDs.length).toFixed(2))
+    totalCfdWeights > 0
+      ? Number((weightedSum / totalCfdWeights).toFixed(2))
       : 0;
+
+  const validCFDs = evaluatedSubjectsWithCFD.map((item) => item.cfd);
 
   const finalCFCPoints200 = Number((finalCFC * 10).toFixed(1));
 
@@ -647,25 +698,42 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 
   return (
     <div className="w-full pb-28 pt-1 space-y-4 animate-fade-in">
-      {/* Top Notification: 12th year grades are strictly linked to tests + Exam 25% rounding rule */}
-      <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs flex items-center justify-between gap-3 text-blue-300">
-        <div className="flex items-center gap-2">
-          <Info className="w-4 h-4 text-blue-400 shrink-0" />
+      {/* Top Notification: 12th year grades + 3:2:1 duration weighting + Exam 25% rounding rule */}
+      <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-blue-300">
+        <div className="flex items-start gap-2">
+          <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
           <span>
-            <strong>Fórmula Oficial da CFD (DL 62/2023):</strong> A nota do exame arredonda primeiro às unidades (ex: 145 pts $\to$ 15 val) e aplica-se <strong>{examWeight}% de exame + {100 - examWeight}% de interna</strong>. As notas do 12.º ano vêm exclusivamente dos testes!
+            <strong>Ponderação Oficial das Disciplinas:</strong> Trienais valem <strong>3x</strong>, Bienais valem <strong>2x</strong> e Anuais valem <strong>1x</strong>. Na CFD aplica-se <strong>{examWeight}% exame</strong> (arredondado a unidades) + <strong>{100 - examWeight}% interna</strong>.
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            triggerHaptic('light');
-            setExamWeight(examWeight === 25 ? 30 : 25);
-          }}
-          title="Clique para alternar a ponderação do exame na CFD"
-          className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 whitespace-nowrap hover:bg-blue-500/30 transition-colors"
-        >
-          {examWeight}% Exame
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              setCfcWeightMode(cfcWeightMode === 'duration' ? 'simple' : 'duration');
+            }}
+            title="Alternar entre Ponderação Oficial 3:2:1 por anos e Média Simples"
+            className={`text-[10px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors ${
+              cfcWeightMode === 'duration'
+                ? 'bg-blue-500/30 text-blue-200 border-blue-400/40'
+                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:text-white'
+            }`}
+          >
+            {cfcWeightMode === 'duration' ? 'Ponderação 3:2:1' : 'Média Simples'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              setExamWeight(examWeight === 25 ? 30 : 25);
+            }}
+            title="Clique para alternar a ponderação do exame na CFD"
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 whitespace-nowrap hover:bg-blue-500/30 transition-colors"
+          >
+            {examWeight}% Exame
+          </button>
+        </div>
       </div>
 
       {/* Top Bar with Course Picker & Tools */}
@@ -721,6 +789,23 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
           >
             <Sliders className="w-3 h-3 text-blue-400" />
             <span>Mudar Curso</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              setCfcWeightMode(cfcWeightMode === 'duration' ? 'simple' : 'duration');
+            }}
+            title="Alternar entre ponderação oficial 3:2:1 por duração (Trienais 3x, Bienais 2x, Anuais 1x) e média simples"
+            className={`text-[10px] font-semibold px-2 py-1.5 rounded-xl border flex items-center gap-1 ios-pressable ${
+              cfcWeightMode === 'duration'
+                ? 'bg-blue-600/20 border-blue-500/30 text-blue-300'
+                : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white'
+            }`}
+          >
+            <span className="font-bold">{cfcWeightMode === 'duration' ? '3:2:1' : '1:1:1'}</span>
+            <span>{cfcWeightMode === 'duration' ? 'Ponderado' : 'Simples'}</span>
           </button>
 
           <button
@@ -789,7 +874,7 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
               Média Secundário (CFC)
             </span>
             <span className="text-[10px] font-semibold text-zinc-400">
-              {validCFDs.length} avaliadas
+              {validCFDs.length} avaliadas {cfcWeightMode === 'duration' && `(${totalCfdWeights}x)`}
             </span>
           </div>
 
@@ -804,6 +889,12 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
               </span>
               <span className="text-[10px] text-zinc-500 block">pontos (0-200)</span>
             </div>
+          </div>
+          <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+            <span className="text-zinc-500">Ponderação:</span>
+            <span className="font-semibold text-blue-300">
+              {cfcWeightMode === 'duration' ? 'Oficial 3:2:1 (3x • 2x • 1x)' : 'Média Simples'}
+            </span>
           </div>
         </div>
 
@@ -1014,8 +1105,15 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
                               ? 'text-purple-400 bg-purple-500/10'
                               : 'text-emerald-400 bg-emerald-500/10'
                           }`}
+                          title={
+                            isTrienal
+                              ? 'Disciplina Trienal (3 anos de escolaridade) — Peso 3 no CFC'
+                              : isBienal
+                              ? 'Disciplina Bienal (2 anos de escolaridade) — Peso 2 no CFC'
+                              : 'Disciplina Anual (1 ano de escolaridade) — Peso 1 no CFC'
+                          }
                         >
-                          {isTrienal ? '3A' : isBienal ? '2A' : '1A'}
+                          {isTrienal ? '3A (x3)' : isBienal ? '2A (x2)' : '1A (x1)'}
                         </span>
                       </div>
                     </td>
