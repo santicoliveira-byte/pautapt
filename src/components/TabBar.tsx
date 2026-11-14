@@ -1,7 +1,21 @@
 import React from 'react';
-import { LayoutDashboard, Plus, BookOpen, Target, Settings } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Plus,
+  GraduationCap,
+  Target,
+  Calendar,
+} from 'lucide-react';
 
-export type TabType = 'dashboard' | 'calculator' | 'subjects' | 'simulator' | 'settings';
+export type TabType =
+  | 'dashboard'
+  | 'secondary'
+  | 'calculator'
+  | 'exams'
+  | 'agenda'
+  | 'subjects'
+  | 'settings'
+  | 'simulator';
 
 interface TabBarProps {
   activeTab: TabType;
@@ -9,20 +23,20 @@ interface TabBarProps {
   testsCount: number;
 }
 
-export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCount }) => {
-  // Reorganized in perfect 5-column mathematical symmetry:
-  // 1: Resumo | 2: Disciplinas | 3: [ + Novo Teste ] (Centro) | 4: Simulador | 5: Opções
+export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCount: _testsCount }) => {
+  // 5 main intuitive pillars:
+  // 1: Resumo | 2: Secundário (3:2:1) | 3: [ + Teste ] | 4: Exames DGES | 5: Agenda
   const tabs = [
     {
       id: 'dashboard' as TabType,
       label: 'Resumo',
       icon: LayoutDashboard,
-      badge: testsCount > 0 ? testsCount : undefined,
     },
     {
-      id: 'subjects' as TabType,
-      label: 'Disciplinas',
-      icon: BookOpen,
+      id: 'secondary' as TabType,
+      label: 'Secundário',
+      icon: GraduationCap,
+      badge: '3:2:1',
     },
     {
       id: 'calculator' as TabType,
@@ -31,14 +45,14 @@ export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCou
       isCenterAction: true,
     },
     {
-      id: 'simulator' as TabType,
-      label: 'Simulador',
+      id: 'exams' as TabType,
+      label: 'Exames DGES',
       icon: Target,
     },
     {
-      id: 'settings' as TabType,
-      label: 'Opções',
-      icon: Settings,
+      id: 'agenda' as TabType,
+      label: 'Agenda',
+      icon: Calendar,
     },
   ];
 
@@ -91,7 +105,7 @@ export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCou
                   }`}
                 />
                 {tab.badge !== undefined && (
-                  <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-1.5 -right-3 px-1 h-3.5 rounded-full bg-blue-500 text-white text-[8px] font-black flex items-center justify-center leading-none">
                     {tab.badge}
                   </span>
                 )}

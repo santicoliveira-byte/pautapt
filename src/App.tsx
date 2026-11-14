@@ -12,6 +12,9 @@ import { DashboardView } from './components/DashboardView';
 import { TestWizard } from './components/TestWizard';
 import { SubjectsView } from './components/SubjectsView';
 import { SimulatorView } from './components/SimulatorView';
+import { SecondaryAverageCalculator } from './components/SecondaryAverageCalculator';
+import { HigherEducationSimulator } from './components/HigherEducationSimulator';
+import { AgendaView } from './components/AgendaView';
 import { SettingsView } from './components/SettingsView';
 import { TestDetailModal } from './components/TestDetailModal';
 import { ReportModal } from './components/ReportModal';
@@ -192,15 +195,19 @@ export const App: React.FC = () => {
       {/* Sticky iOS Top Navigation */}
       <Header
         activeTab={activeTab}
+        onChangeTab={(tab) => {
+          if (tab === 'calculator') setEditingTest(null);
+          setActiveTab(tab);
+        }}
         onNewTestClick={() => {
           setEditingTest(null);
           setActiveTab('calculator');
         }}
-        onSimulatorClick={() => setActiveTab('simulator')}
+        onOpenReport={() => setIsReportModalOpen(true)}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-md mx-auto">
+      <main className="flex-1 w-full mx-auto">
         {activeTab === 'dashboard' && (
           <DashboardView
             tests={tests}
@@ -211,15 +218,14 @@ export const App: React.FC = () => {
               setActiveTab('calculator');
             }}
             onOpenSimulator={() => setActiveTab('simulator')}
+            onOpenSecondary={() => setActiveTab('secondary')}
+            onOpenExams={() => setActiveTab('exams')}
             onSelectSubject={(subj) => {
               setSimulatorSubject(subj);
               setActiveTab('subjects');
             }}
             onOpenReport={() => setIsReportModalOpen(true)}
-            onOpenAgenda={() => {
-              setAgendaInitialSubject('');
-              setIsAgendaModalOpen(true);
-            }}
+            onOpenAgenda={() => setActiveTab('agenda')}
             onQuickAddEvaluation={() => {
               setAgendaInitialSubject('');
               setIsAgendaModalOpen(true);
@@ -227,47 +233,81 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === 'calculator' && (
-          <TestWizard
-            onSaveTest={handleSaveTest}
-            initialTest={editingTest}
-            onCancel={() => {
-              setEditingTest(null);
-              setActiveTab('dashboard');
-            }}
+        {activeTab === 'secondary' && (
+          <div className="max-w-5xl mx-auto pb-28 pt-2 px-3 sm:px-6 animate-fade-in">
+            <SecondaryAverageCalculator
+              tests={tests}
+              onNavigateToNewTest={handleNewTestForSubject}
+            />
+          </div>
+        )}
+
+        {activeTab === 'exams' && (
+          <div className="max-w-4xl mx-auto pb-28 pt-2 px-3 sm:px-6 animate-fade-in">
+            <HigherEducationSimulator tests={tests} />
+          </div>
+        )}
+
+        {activeTab === 'agenda' && (
+          <AgendaView
+            evaluations={evaluations}
+            onSaveEvaluation={handleSaveEvaluation}
+            onDeleteEvaluation={handleDeleteEvaluation}
+            onMarkAsCompleted={handleMarkEvaluationCompleted}
+            existingSubjects={Array.from(new Set(tests.map((t) => t.subject)))}
+            initialSubject={agendaInitialSubject}
           />
+        )}
+
+        {activeTab === 'calculator' && (
+          <div className="max-w-xl mx-auto px-2">
+            <TestWizard
+              onSaveTest={handleSaveTest}
+              initialTest={editingTest}
+              onCancel={() => {
+                setEditingTest(null);
+                setActiveTab('dashboard');
+              }}
+            />
+          </div>
         )}
 
         {activeTab === 'subjects' && (
-          <SubjectsView
-            tests={tests}
-            onSelectTest={(test) => setSelectedTestModal(test)}
-            onNewTestForSubject={handleNewTestForSubject}
-            onSimulateForSubject={handleSimulateForSubject}
-            onDeleteTest={handleDeleteTest}
-            onScheduleForSubject={(subj) => {
-              setAgendaInitialSubject(subj);
-              setIsAgendaModalOpen(true);
-            }}
-          />
+          <div className="max-w-2xl mx-auto px-2">
+            <SubjectsView
+              tests={tests}
+              onSelectTest={(test) => setSelectedTestModal(test)}
+              onNewTestForSubject={handleNewTestForSubject}
+              onSimulateForSubject={handleSimulateForSubject}
+              onDeleteTest={handleDeleteTest}
+              onScheduleForSubject={(subj) => {
+                setAgendaInitialSubject(subj);
+                setIsAgendaModalOpen(true);
+              }}
+            />
+          </div>
         )}
 
         {activeTab === 'simulator' && (
-          <SimulatorView
-            tests={tests}
-            initialSubject={simulatorSubject}
-            onNavigateToNewTest={handleNewTestForSubject}
-          />
+          <div className="max-w-4xl mx-auto pb-28 pt-2 px-3 sm:px-6 animate-fade-in">
+            <SimulatorView
+              tests={tests}
+              initialSubject={simulatorSubject}
+              onNavigateToNewTest={handleNewTestForSubject}
+            />
+          </div>
         )}
 
         {activeTab === 'settings' && (
-          <SettingsView
-            tests={tests}
-            onImportSuccess={(imported) => setTests(imported)}
-            onClearAll={() => setTests([])}
-            currentAccent={currentAccent}
-            onAccentChange={handleAccentChange}
-          />
+          <div className="max-w-xl mx-auto px-2">
+            <SettingsView
+              tests={tests}
+              onImportSuccess={(imported) => setTests(imported)}
+              onClearAll={() => setTests([])}
+              currentAccent={currentAccent}
+              onAccentChange={handleAccentChange}
+            />
+          </div>
         )}
       </main>
 
