@@ -26,7 +26,20 @@ import {
   Trash2,
   Sliders,
   AlertCircle,
+  Check,
 } from 'lucide-react';
+
+const QUICK_CRITERIA_SUBJECTS = [
+  'Português',
+  'Matemática A',
+  'Físico-Química A',
+  'Biologia e Geologia',
+  'Filosofia',
+  'Inglês',
+  'Educação Física',
+  'História A',
+  'Economia A',
+];
 
 interface SubjectsViewProps {
   tests: SchoolTest[];
@@ -114,9 +127,11 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
     <div className="max-w-3xl mx-auto pb-28 pt-2 px-3 sm:px-6 space-y-4 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-white">Disciplinas & Critérios</h2>
+          <h2 className="text-xl font-bold tracking-tight text-white">
+            Disciplinas & Critérios
+          </h2>
           <p className="text-xs text-zinc-400">
-            Define a % de cada domínio (critérios de avaliação) e acompanha as médias
+            Toca numa disciplina para definir as percentagens dos critérios de classificação
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -126,37 +141,74 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
           {onSaveSubjectCriteria && (
             <button
               type="button"
-              onClick={() => openCriteriaModal('Matemática A', true)}
+              onClick={() => openCriteriaModal('OUTRA', true)}
               className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-ios-glow-blue ios-pressable transition-all"
             >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>Configurar Critérios</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Outra Disciplina</span>
             </button>
           )}
         </div>
       </div>
 
-      {displaySubjects.length === 0 ? (
-        <div className="py-12 px-5 rounded-3xl bg-zinc-900/60 border border-white/10 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center mx-auto text-blue-400">
-            <BookOpen className="w-7 h-7" />
+      {/* Quick Criteria Configurator Strip */}
+      {onSaveSubjectCriteria && (
+        <div className="p-3.5 rounded-3xl bg-zinc-900/80 border border-blue-500/20 space-y-2.5 shadow-ios-card">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5" />
+              Critérios de Classificação por Disciplina (%)
+            </span>
+            <span className="text-[10px] text-zinc-500">Toca para editar</span>
           </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-white">Nenhuma disciplina registada</h3>
-            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              Podes configurar já as percentagens dos critérios de avaliação de cada disciplina, ou lançar um teste no botão "+ Novo Teste".
-            </p>
-          </div>
-          {onSaveSubjectCriteria && (
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_CRITERIA_SUBJECTS.map((subj) => {
+              const { criteria } = getSubjectCriteriaEntry(subjectCriteria, subj);
+              const configured = criteria.length > 0;
+              return (
+                <button
+                  key={subj}
+                  type="button"
+                  onClick={() => openCriteriaModal(subj, false)}
+                  className={`text-xs px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all ios-pressable ${
+                    configured
+                      ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-200 font-semibold'
+                      : 'bg-zinc-950/70 border-white/10 text-zinc-300 hover:border-blue-500/40 hover:text-white'
+                  }`}
+                >
+                  {configured && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                  <span>{subj}</span>
+                  {configured && (
+                    <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+                      {criteria.length}D
+                    </span>
+                  )}
+                </button>
+              );
+            })}
             <button
               type="button"
-              onClick={() => openCriteriaModal('Matemática A', true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-ios-glow-blue ios-pressable"
+              onClick={() => openCriteriaModal('Química', true)}
+              className="text-xs px-2.5 py-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 font-semibold flex items-center gap-1 ios-pressable"
             >
-              <Sliders className="w-4 h-4" />
-              <span>Definir Critérios por Domínio (%)</span>
+              <Plus className="w-3 h-3" />
+              <span>12º Ano / Outra</span>
             </button>
-          )}
+          </div>
+        </div>
+      )}
+
+      {displaySubjects.length === 0 ? (
+        <div className="py-10 px-5 rounded-3xl bg-zinc-900/60 border border-white/10 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center mx-auto text-blue-400">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-white">Ainda não configuraste nenhuma disciplina</h3>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              Escolhe uma disciplina acima para definir as percentagens de cada domínio (critérios de classificação) antes de lançares testes.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -231,7 +283,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {onSaveSubjectCriteria && (
                       <button
                         type="button"
@@ -239,10 +291,11 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                           e.stopPropagation();
                           openCriteriaModal(stat.name, false);
                         }}
-                        title="Configurar percentagens dos domínios (Critérios de Avaliação)"
-                        className="p-2 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 ios-pressable transition-colors"
+                        title="Configurar percentagens dos domínios (Critérios de Classificação)"
+                        className="px-2.5 py-1.5 rounded-xl bg-blue-500/15 text-blue-300 hover:bg-blue-500/25 border border-blue-500/25 text-[11px] font-semibold flex items-center gap-1 ios-pressable transition-colors"
                       >
-                        <Sliders className="w-3.5 h-3.5" />
+                        <Sliders className="w-3 h-3" />
+                        <span>Critérios %</span>
                       </button>
                     )}
 
@@ -269,6 +322,20 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Inline criteria pills preview even when collapsed */}
+                {hasCriteria && !isExpanded && (
+                  <div className="px-4 pb-2.5 flex flex-wrap gap-1">
+                    {subjCriteria.map((c) => (
+                      <span
+                        key={c.id}
+                        className="text-[10px] px-2 py-0.5 rounded-lg bg-zinc-950/80 border border-white/5 text-zinc-300"
+                      >
+                        {c.name} <strong className="text-blue-400">{c.percentage}%</strong>
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Progress bar to 20 */}
                 <div className="px-4 pb-1">

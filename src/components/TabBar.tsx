@@ -5,15 +5,16 @@ import {
   GraduationCap,
   Target,
   Calendar,
+  BookOpen,
 } from 'lucide-react';
 
 export type TabType =
   | 'dashboard'
+  | 'subjects'
   | 'secondary'
   | 'calculator'
   | 'exams'
   | 'agenda'
-  | 'subjects'
   | 'settings'
   | 'simulator';
 
@@ -24,13 +25,19 @@ interface TabBarProps {
 }
 
 export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCount: _testsCount }) => {
-  // 5 main intuitive pillars:
-  // 1: Resumo | 2: Secundário (3:2:1) | 3: [ + Teste ] | 4: Exames DGES | 5: Agenda
+  // 6 main intuitive pillars in bottom bar:
+  // 1: Resumo | 2: Disciplinas (%) | 3: Secundário (3:2:1) | 4: Exames | 5: Agenda | 6: + Teste
   const tabs = [
     {
       id: 'dashboard' as TabType,
       label: 'Resumo',
       icon: LayoutDashboard,
+    },
+    {
+      id: 'subjects' as TabType,
+      label: 'Disciplinas',
+      icon: BookOpen,
+      badge: '%',
     },
     {
       id: 'secondary' as TabType,
@@ -39,14 +46,8 @@ export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCou
       badge: '3:2:1',
     },
     {
-      id: 'calculator' as TabType,
-      label: 'Novo Teste',
-      icon: Plus,
-      isCenterAction: true,
-    },
-    {
       id: 'exams' as TabType,
-      label: 'Exames DGES',
+      label: 'Exames',
       icon: Target,
     },
     {
@@ -54,35 +55,34 @@ export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCou
       label: 'Agenda',
       icon: Calendar,
     },
+    {
+      id: 'calculator' as TabType,
+      label: '+ Teste',
+      icon: Plus,
+      isAction: true,
+    },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-safe pt-1 pointer-events-none">
-      <div className="pointer-events-auto max-w-md mx-auto mb-2 bg-zinc-950/85 backdrop-blur-2xl border border-white/[0.1] rounded-3xl p-1.5 shadow-2xl grid grid-cols-5 items-center">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 px-2 sm:px-3 pb-safe pt-1 pointer-events-none">
+      <div className="pointer-events-auto max-w-lg mx-auto mb-2 bg-zinc-950/90 backdrop-blur-2xl border border-white/[0.1] rounded-3xl p-1.5 shadow-2xl grid grid-cols-6 gap-0.5 items-center">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
 
-          if (tab.isCenterAction) {
+          if (tab.isAction) {
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => onChangeTab(tab.id)}
-                className="relative flex flex-col items-center justify-center py-0.5 -mt-3.5 ios-pressable group"
+                className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white shadow-ios-glow-blue transition-all duration-200 ios-pressable ${
+                  isActive ? 'ring-2 ring-white/40 scale-[1.02]' : ''
+                }`}
               >
-                <div
-                  className={`w-11 h-11 rounded-2xl bg-blue-600 text-white shadow-ios-glow-blue border-2 border-zinc-950 flex items-center justify-center transition-all duration-200 ${
-                    isActive ? 'scale-105 ring-2 ring-white/30' : 'group-hover:scale-105'
-                  }`}
-                >
-                  <Plus className="w-5 h-5 stroke-[2.8]" />
-                </div>
-                <span
-                  className={`text-[9.5px] mt-1 font-semibold tracking-tight transition-colors ${
-                    isActive ? 'text-blue-400' : 'text-zinc-400'
-                  }`}
-                >
-                  {tab.label}
+                <Icon className="w-5 h-5 stroke-[2.6]" />
+                <span className="text-[9.5px] mt-0.5 font-bold tracking-tight truncate max-w-full">
+                  Teste
                 </span>
               </button>
             );
@@ -91,10 +91,11 @@ export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCou
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => onChangeTab(tab.id)}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 ios-pressable ${
+              className={`relative flex flex-col items-center justify-center py-1.5 px-0.5 rounded-2xl transition-all duration-200 ios-pressable min-w-0 ${
                 isActive
-                  ? 'text-blue-400 font-semibold'
+                  ? 'text-blue-400 font-semibold bg-blue-500/10'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -105,13 +106,13 @@ export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCou
                   }`}
                 />
                 {tab.badge !== undefined && (
-                  <span className="absolute -top-1.5 -right-3 px-1 h-3.5 rounded-full bg-blue-500 text-white text-[8px] font-black flex items-center justify-center leading-none">
+                  <span className="absolute -top-1.5 -right-2.5 px-1 h-3.5 rounded-full bg-blue-500 text-white text-[8px] font-black flex items-center justify-center leading-none">
                     {tab.badge}
                   </span>
                 )}
               </div>
               <span
-                className={`text-[10px] mt-1 tracking-tight transition-colors ${
+                className={`text-[9.5px] mt-1 tracking-tight truncate max-w-full transition-colors ${
                   isActive ? 'text-blue-400' : 'text-zinc-400'
                 }`}
               >
