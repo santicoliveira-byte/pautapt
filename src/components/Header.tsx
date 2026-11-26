@@ -84,19 +84,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => onChangeTab('subjects')}
-            title="Disciplinas e Critérios (%)"
-            className={`md:hidden p-2 rounded-xl border ios-pressable transition-colors ${
-              activeTab === 'subjects'
-                ? 'bg-blue-600/20 text-blue-400 border-blue-500/30'
-                : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-          </button>
-
           {onOpenReport && (
             <button
               type="button"

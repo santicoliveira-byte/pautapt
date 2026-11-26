@@ -10,6 +10,7 @@ import {
   getSubjectCriteriaEntry,
   getTestCriterionIds,
 } from '../utils/gradeUtils';
+import { computeLiveSecondarySummary } from '../utils/secondaryUtils';
 import { EvolutionChart } from './EvolutionChart';
 import { UpcomingCountdownHero } from './UpcomingCountdownHero';
 import {
@@ -85,68 +86,135 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     totalSubjectWeight > 0 ? Number((weightedSubjectSum / totalSubjectWeight).toFixed(2)) : 0;
 
   const successRate = totalTests > 0 ? (positiveTestsCount / totalTests) * 100 : 0;
+  const liveSecondary = computeLiveSecondarySummary(tests, subjectCriteria);
 
   return (
     <div className="max-w-4xl mx-auto pb-28 pt-2 px-3 sm:px-6 space-y-6 animate-fade-in">
-      {/* Hero Overview Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 p-5 border border-white/10 shadow-ios-card">
-        <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-blue-600/20 blur-3xl pointer-events-none" />
+      {/* Side-by-side Live Overview Cards: Média do Ano + Média do Secundário (Ao Vivo) */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 items-stretch">
+        {/* Square 1: Média do Ano */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 p-3.5 sm:p-5 border border-white/10 shadow-ios-card flex flex-col justify-between">
+          <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full bg-blue-600/20 blur-3xl pointer-events-none" />
 
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Média Geral Ponderada
-            </span>
+          <div>
+            <div className="flex items-center justify-between gap-1 mb-2 sm:mb-3">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">
+                  Média do Ano
+                </span>
+              </div>
+              <span className="text-[10px] sm:text-[11px] text-zinc-400 font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-zinc-800/80 border border-white/5 shrink-0">
+                {totalTests} {totalTests === 1 ? 'teste' : 'testes'}
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 mb-3 sm:mb-4">
+              <div className="flex items-baseline gap-1 sm:gap-2">
+                <span className="text-3xl sm:text-5xl font-black tracking-tight text-white">
+                  {totalTests > 0 ? overallAverage.toFixed(1) : '--'}
+                </span>
+                <span className="text-xs sm:text-lg font-semibold text-zinc-500">/ 20</span>
+              </div>
+
+              <div className="sm:text-right">
+                <div className="text-[11px] sm:text-xs font-semibold text-emerald-400">
+                  {totalTests > 0 ? `${successRate.toFixed(0)}% Positivas` : 'Sem dados'}
+                </div>
+                <div className="text-[10px] sm:text-[11px] text-zinc-500">
+                  {positiveTestsCount} de {totalTests} aprov.
+                </div>
+              </div>
+            </div>
           </div>
-          <span className="text-[11px] text-zinc-400 font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 border border-white/5">
-            {totalTests} {totalTests === 1 ? 'teste' : 'testes'}
-          </span>
+
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 pt-2.5 sm:pt-3 border-t border-white/10 text-center">
+            <div className="p-1.5 sm:p-2 rounded-xl sm:rounded-2xl bg-zinc-950/60 border border-white/5">
+              <span className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-wider block truncate">
+                Disc.
+              </span>
+              <span className="text-xs sm:text-sm font-bold text-zinc-200">
+                {subjectsList.length}
+              </span>
+            </div>
+            <div className="p-1.5 sm:p-2 rounded-xl sm:rounded-2xl bg-zinc-950/60 border border-white/5">
+              <span className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-wider block truncate">
+                Máx
+              </span>
+              <span className="text-xs sm:text-sm font-bold text-emerald-400">
+                {totalTests > 0 ? highest.toFixed(1) : '--'}
+              </span>
+            </div>
+            <div className="p-1.5 sm:p-2 rounded-xl sm:rounded-2xl bg-zinc-950/60 border border-white/5">
+              <span className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-wider block truncate">
+                Mín
+              </span>
+              <span className="text-xs sm:text-sm font-bold text-amber-400">
+                {totalTests > 0 ? lowest.toFixed(1) : '--'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-baseline justify-between mb-4">
-          <div className="flex items-baseline gap-2">
-            <span className="text-5xl font-black tracking-tight text-white">
-              {totalTests > 0 ? overallAverage.toFixed(1) : '--'}
-            </span>
-            <span className="text-lg font-semibold text-zinc-500">/ 20</span>
+        {/* Square 2: Média do Secundário (Ao Vivo) */}
+        <div
+          onClick={onOpenSecondary || onOpenSimulator}
+          className="cursor-pointer group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950/35 via-zinc-900/95 to-zinc-950 p-3.5 sm:p-5 border border-emerald-500/25 hover:border-emerald-500/50 shadow-ios-card flex flex-col justify-between ios-pressable transition-all"
+        >
+          <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
+
+          <div>
+            <div className="flex items-center justify-between gap-1 mb-2 sm:mb-3">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-emerald-300 truncate">
+                  Secundário
+                </span>
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
+                {liveSecondary.cfcWeightMode === 'duration' ? '3:2:1' : 'Simples'}
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 mb-3 sm:mb-4">
+              <div className="flex items-baseline gap-1 sm:gap-2">
+                <span className="text-3xl sm:text-5xl font-black tracking-tight text-white">
+                  {liveSecondary.evaluatedCount > 0 ? liveSecondary.finalCFC.toFixed(2) : '--'}
+                </span>
+                <span className="text-xs sm:text-lg font-semibold text-zinc-500">/ 20</span>
+              </div>
+
+              <div className="sm:text-right">
+                <div className="text-[11px] sm:text-xs font-bold text-blue-400">
+                  {liveSecondary.evaluatedCount > 0
+                    ? `${liveSecondary.finalCFCPoints200.toFixed(1)} pts`
+                    : 'Sem dados'}
+                </div>
+                <div className="text-[10px] sm:text-[11px] text-zinc-500">
+                  Ao vivo • 10º+11º+12º
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="text-right">
-            <div className="text-xs font-semibold text-emerald-400">
-              {totalTests > 0 ? `${successRate.toFixed(0)}% Positivas` : 'Sem dados'}
+          {/* Live Sync Info & Link */}
+          <div className="pt-2.5 sm:pt-3 border-t border-white/10 space-y-1.5">
+            {liveSecondary.hasAnyMelhoria && liveSecondary.cfcMelhoriaGain > 0 ? (
+              <div className="px-2 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-[10px] text-emerald-300 font-semibold truncate text-center">
+                ✨ +{liveSecondary.cfcMelhoriaGain.toFixed(2)} melhoria exame
+              </div>
+            ) : (
+              <div className="px-2 py-1 rounded-xl bg-zinc-950/60 border border-white/5 text-[10px] text-zinc-400 truncate text-center">
+                {liveSecondary.synced12thCount > 0
+                  ? `${liveSecondary.synced12thCount} disc. 12º ligadas`
+                  : 'Atualiza com novos testes'}
+              </div>
+            )}
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-emerald-400 px-0.5">
+              <span className="truncate">Editar 10º / 11º / Exames</span>
+              <ChevronRight className="w-3.5 h-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
             </div>
-            <div className="text-[11px] text-zinc-500">
-              {positiveTestsCount} de {totalTests} aprovados
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Stats Grid */}
-        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-white/10 text-center">
-          <div className="p-2 rounded-2xl bg-zinc-950/60 border border-white/5">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-              Disciplinas
-            </span>
-            <span className="text-sm font-bold text-zinc-200">
-              {subjectsList.length}
-            </span>
-          </div>
-          <div className="p-2 rounded-2xl bg-zinc-950/60 border border-white/5">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-              Melhor Nota
-            </span>
-            <span className="text-sm font-bold text-emerald-400">
-              {totalTests > 0 ? highest.toFixed(1) : '--'}
-            </span>
-          </div>
-          <div className="p-2 rounded-2xl bg-zinc-950/60 border border-white/5">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-              Menor Nota
-            </span>
-            <span className="text-sm font-bold text-amber-400">
-              {totalTests > 0 ? lowest.toFixed(1) : '--'}
-            </span>
           </div>
         </div>
       </div>

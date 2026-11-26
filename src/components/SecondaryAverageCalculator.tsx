@@ -1,6 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolTest, SubjectCriteriaMap, SubjectStats, UniversityCourse } from '../types';
 import { calculateSubjectStats, ANNUAL_12TH_SUBJECTS } from '../utils/gradeUtils';
+import {
+  CFDResult,
+  DEFAULT_TABLE_SUBJECTS,
+  STORAGE_KEY_CFC_WEIGHT_MODE,
+  STORAGE_KEY_COURSE,
+  STORAGE_KEY_EXAM_WEIGHT,
+  STORAGE_KEY_MELHORIA_MODE,
+  STORAGE_KEY_ROUNDING,
+  STORAGE_KEY_TABLE,
+  STORAGE_KEY_WEIGHT_PRESET,
+  SubjectType,
+  TableSubject,
+  computeSubjectCFD,
+  computeSubjectCI,
+  findMatchingSubjectStat,
+  get12thGradeFromTests as get12thGradeShared,
+  loadStoredSecondarySubjects,
+} from '../utils/secondaryUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
 import { CourseSearchModal } from './CourseSearchModal';
@@ -20,130 +38,7 @@ import {
   Search,
 } from 'lucide-react';
 
-export type SubjectType = 'trienal' | 'bienal' | 'anual';
-
-export interface TableSubject {
-  id: string;
-  name: string;
-  type: SubjectType;
-  grade10: number | null; // 0-20 manual
-  grade11: number | null; // 0-20 manual
-  // Note: 12.º ano has NO manual grade; it is STRICTLY computed from the tests in the app!
-  enConta: boolean; // "EN Conta?" Sim / Não
-  examGrade: number | null; // 0-200 pontos
-  acessoSuperior: boolean; // "Acesso ao Ensino Superior" Sim / Não (Prova de Ingresso)
-  hasNationalExam: boolean; // false for Educação Física
-  isMelhoria?: boolean; // Candidato a melhoria de classificação
-}
-
-export interface CFDResult {
-  value: number | null;
-  regularValue: number | null;
-  isMelhoriaApplied: boolean;
-  gain: number;
-}
-
-const STORAGE_KEY_TABLE = 'pautapt_secondary_table_v4';
-const STORAGE_KEY_COURSE = 'pautapt_secondary_course_v4';
-const STORAGE_KEY_WEIGHT_PRESET = 'pautapt_cnaes_weight_preset_v4';
-const STORAGE_KEY_ROUNDING = 'pautapt_rounding_mode_v4';
-const STORAGE_KEY_EXAM_WEIGHT = 'pautapt_exam_weight_v4';
-const STORAGE_KEY_CFC_WEIGHT_MODE = 'pautapt_cfc_weight_mode_v4';
-const STORAGE_KEY_MELHORIA_MODE = 'pautapt_melhoria_mode_v4';
-
-// Default Portuguese curriculum matching the official template
-const DEFAULT_TABLE_SUBJECTS: Omit<TableSubject, 'id'>[] = [
-  {
-    name: 'Português',
-    type: 'trienal',
-    grade10: 15,
-    grade11: 15,
-    enConta: true,
-    examGrade: 145,
-    acessoSuperior: false,
-    hasNationalExam: true,
-  },
-  {
-    name: 'Língua Estrangeira',
-    type: 'bienal',
-    grade10: 16,
-    grade11: 16,
-    enConta: false,
-    examGrade: null,
-    acessoSuperior: false,
-    hasNationalExam: true,
-  },
-  {
-    name: 'Filosofia',
-    type: 'bienal',
-    grade10: 15,
-    grade11: 15,
-    enConta: false,
-    examGrade: null,
-    acessoSuperior: false,
-    hasNationalExam: true,
-  },
-  {
-    name: 'Educação Física',
-    type: 'trienal',
-    grade10: 17,
-    grade11: 17,
-    enConta: false,
-    examGrade: null,
-    acessoSuperior: false,
-    hasNationalExam: false,
-  },
-  {
-    name: 'Matemática A',
-    type: 'trienal',
-    grade10: 16,
-    grade11: 16,
-    enConta: true,
-    examGrade: 160,
-    acessoSuperior: false,
-    hasNationalExam: true,
-  },
-  {
-    name: 'Bienal 1',
-    type: 'bienal',
-    grade10: 12,
-    grade11: 14,
-    enConta: true,
-    examGrade: 145,
-    acessoSuperior: true, // Prova de Ingresso ativa
-    hasNationalExam: true,
-  },
-  {
-    name: 'Bienal 2',
-    type: 'bienal',
-    grade10: 15,
-    grade11: 15,
-    enConta: false,
-    examGrade: null,
-    acessoSuperior: false,
-    hasNationalExam: true,
-  },
-  {
-    name: 'Química',
-    type: 'anual',
-    grade10: null,
-    grade11: null,
-    enConta: false,
-    examGrade: null,
-    acessoSuperior: false,
-    hasNationalExam: true,
-  },
-  {
-    name: 'Biologia',
-    type: 'anual',
-    grade10: null,
-    grade11: null,
-    enConta: false,
-    examGrade: null,
-    acessoSuperior: false,
-    hasNationalExam: true,
-  },
-];
+export type { SubjectType, TableSubject, CFDResult };
 
 // Course Presets to adapt subject names
 const COURSE_NAME_PRESETS: Record<
@@ -209,7 +104,6 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 }) => {
   const subjectStats = calculateSubjectStats(tests, subjectCriteria);
 
-  // Smart subject matching for tests
   const normalize = (str: string) =>
     str
       .toLowerCase()
@@ -217,74 +111,11 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
       .replace(/[\u0300-\u036f]/g, '')
       .trim();
 
-  const getSubjectStat = (tableName: string): SubjectStats | undefined => {
-    if (subjectStats[tableName]) return subjectStats[tableName];
-
-    const normTable = normalize(tableName);
-
-    // Exact normalized match
-    for (const [key, stat] of Object.entries(subjectStats)) {
-      if (normalize(key) === normTable) return stat;
-    }
-
-    // Substring / Keyword matching
-    for (const [key, stat] of Object.entries(subjectStats)) {
-      const normKey = normalize(key);
-      if (normTable.includes(normKey) || normKey.includes(normTable)) {
-        return stat;
-      }
-      const keywords = [
-        'portugues',
-        'matematica',
-        'fisic',
-        'quimic',
-        'biolog',
-        'geolog',
-        'psicolog',
-        'sociolog',
-        'direito',
-        'antropolog',
-        'politica',
-        'artes',
-        'oficina',
-        'multimedia',
-        'materiais',
-        'informatica',
-        'educacao',
-        'filosof',
-        'ingles',
-        'geograf',
-        'histori',
-        'econom',
-        'desenh',
-        'geometr',
-      ];
-      for (const kw of keywords) {
-        if (normTable.includes(kw) && normKey.includes(kw)) {
-          return stat;
-        }
-      }
-    }
-
-    return undefined;
-  };
+  const getSubjectStat = (tableName: string): SubjectStats | undefined =>
+    findMatchingSubjectStat(subjectStats, tableName);
 
   // Subjects state
-  const [subjects, setSubjects] = useState<TableSubject[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_TABLE);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    return DEFAULT_TABLE_SUBJECTS.map((s, idx) => ({
-      ...s,
-      id: `subj-${idx}-${Date.now()}`,
-    }));
-  });
+  const [subjects, setSubjects] = useState<TableSubject[]>(() => loadStoredSecondarySubjects());
 
   const [selectedCourse, setSelectedCourse] = useState<string>(() => {
     try {
@@ -517,88 +348,16 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
   }, [tests]);
 
   // STRICT: 12th year grade is ONLY retrieved from tests in the app!
-  const get12thGradeFromTests = (s: TableSubject): number | null => {
-    if (s.type === 'bienal') return null;
-    const stat = getSubjectStat(s.name);
-    if (stat && stat.count > 0) {
-      return stat.weightedAverage;
-    }
-    return null;
-  };
+  const get12thGradeFromTests = (s: TableSubject): number | null =>
+    get12thGradeShared(s, subjectStats);
 
   // Helper: compute CI (Classificação Interna)
-  const computeCI = (s: TableSubject): { value: number | null; isProvisional: boolean } => {
-    let raw: number | null = null;
-    let isProvisional = false;
-
-    if (s.type === 'trienal') {
-      const g10 = s.grade10 ?? 0;
-      const g11 = s.grade11 ?? 0;
-      const g12 = get12thGradeFromTests(s);
-
-      if (g12 !== null) {
-        // Officially has 12th year tests
-        raw = (g10 + g11 + g12) / 3;
-      } else {
-        // Provisional average based on 10th and 11th year until tests are added
-        raw = (g10 + g11) / 2;
-        isProvisional = true;
-      }
-    } else if (s.type === 'bienal') {
-      const g10 = s.grade10 ?? 0;
-      const g11 = s.grade11 ?? 0;
-      raw = (g10 + g11) / 2;
-    } else {
-      // Anual (12º ano apenas)
-      const g12 = get12thGradeFromTests(s);
-      if (g12 !== null) {
-        raw = g12;
-      } else {
-        // No tests yet for this 12th year option
-        return { value: null, isProvisional: true };
-      }
-    }
-
-    if (raw === null) return { value: null, isProvisional };
-
-    if (roundingMode === 'official') {
-      return { value: Math.round(raw), isProvisional };
-    }
-    return { value: Number(raw.toFixed(1)), isProvisional };
-  };
+  const computeCI = (s: TableSubject): { value: number | null; isProvisional: boolean } =>
+    computeSubjectCI(s, subjectStats, roundingMode);
 
   // Helper: compute CFD (Classificação Final da Disciplina) com suporte a Melhoria de Nota
-  const computeCFD = (s: TableSubject): CFDResult => {
-    const { value: ci } = computeCI(s);
-    if (ci === null) {
-      return { value: null, regularValue: null, isMelhoriaApplied: false, gain: 0 };
-    }
-
-    if (!s.enConta || s.examGrade === null || s.examGrade === undefined) {
-      return { value: ci, regularValue: ci, isMelhoriaApplied: false, gain: 0 };
-    }
-
-    // Regra Oficial do Ensino Secundário em Portugal (Decreto-Lei n.º 62/2023):
-    // 1) A nota do Exame Nacional arredonda às unidades na escala de 0 a 20 valores
-    const examUnits = Math.round(s.examGrade / 10);
-
-    // 2) Aplica-se a ponderação regular de 25% Exame e 75% Interna (ou 30%/70% se selecionado)
-    const weight = examWeight / 100;
-    const rawCFD = (1 - weight) * ci + weight * examUnits;
-    const regularValue =
-      roundingMode === 'official' ? Math.round(rawCFD) : Number(rawCFD.toFixed(1));
-
-    // Regra Oficial de Melhoria de Classificação:
-    // Se a melhoria estiver ativa e a nota do exame (arredondada a unidades) for superior à CFD regular:
-    // O exame substitui a classificação final da disciplina (vale 100% da disciplina para efeitos de melhoria).
-    const canImprove = melhoriaMode === 'auto' || s.isMelhoria;
-    if (canImprove && examUnits > regularValue) {
-      const gain = Number((examUnits - regularValue).toFixed(1));
-      return { value: examUnits, regularValue, isMelhoriaApplied: true, gain };
-    }
-
-    return { value: regularValue, regularValue, isMelhoriaApplied: false, gain: 0 };
-  };
+  const computeCFD = (s: TableSubject): CFDResult =>
+    computeSubjectCFD(s, subjectStats, { roundingMode, examWeight, melhoriaMode });
 
   // Weight helper by subject duration (Trienal: 3x, Bienal: 2x, Anual: 1x)
   const getSubjectTypeWeight = (type: SubjectType) => {
