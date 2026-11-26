@@ -72,6 +72,11 @@ export const App: React.FC = () => {
     saveSubjectCriteria(subjectCriteria);
   }, [subjectCriteria]);
 
+  // Reset scroll position when changing tabs so tall/short tab transitions never get stuck mid-page
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeTab]);
+
   const handleSaveSubjectCriteria = (subjectName: string, criteria: SubjectCriterionDomain[]) => {
     setSubjectCriteria((prev) => {
       const { key } = getSubjectCriteriaEntry(prev, subjectName);
@@ -243,7 +248,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-[100dvh] bg-black text-white flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* Sticky iOS Top Navigation */}
       <Header
         activeTab={activeTab}
@@ -259,7 +264,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full mx-auto">
+      <main className="flex-1 min-w-0 w-full mx-auto">
         {activeTab === 'dashboard' && (
           <DashboardView
             tests={tests}

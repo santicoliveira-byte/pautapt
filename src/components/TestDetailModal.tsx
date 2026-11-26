@@ -109,15 +109,15 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-md max-h-[90vh] bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-y-auto no-scrollbar shadow-2xl animate-slide-up flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain">
+      <div className="w-full max-w-md max-h-[90dvh] bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-slide-up flex flex-col">
         {/* iOS Drag handle */}
-        <div className="pt-3 pb-1 flex justify-center sm:hidden">
+        <div className="shrink-0 pt-3 pb-1 flex justify-center sm:hidden">
           <div className="w-10 h-1 bg-zinc-700 rounded-full" />
         </div>
 
         {/* Modal Top Bar */}
-        <div className="p-4 pb-2 flex items-center justify-between border-b border-white/5">
+        <div className="shrink-0 p-4 pb-2 flex items-center justify-between border-b border-white/5">
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">
@@ -140,7 +140,7 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4 flex-1">
+        <div className="p-4 space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {/* Main Grade Card */}
           <GradeDisplayCard
             obtainedPoints={test.obtainedPoints}
@@ -464,7 +464,7 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="p-4 pt-2 border-t border-white/5 flex gap-2">
+        <div className="shrink-0 p-4 pt-2 border-t border-white/5 flex gap-2 bg-zinc-950 safe-bottom sm:pb-4">
           <button
             type="button"
             onClick={() => {

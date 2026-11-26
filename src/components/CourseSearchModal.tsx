@@ -81,10 +81,10 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-zinc-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overscroll-contain">
+      <div className="relative w-full max-w-2xl bg-zinc-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 bg-zinc-900/60 flex items-center justify-between">
+        <div className="shrink-0 p-4 sm:p-5 border-b border-white/10 bg-zinc-900/60 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
               <GraduationCap className="w-5 h-5" />
@@ -112,7 +112,7 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
         </div>
 
         {/* Search & Filters */}
-        <div className="p-4 border-b border-white/5 bg-zinc-900/30 space-y-3">
+        <div className="shrink-0 p-4 border-b border-white/5 bg-zinc-900/30 space-y-3">
           {/* Search bar */}
           <div className="relative">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-400" />
@@ -135,7 +135,7 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
           </div>
 
           {/* Area filters */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden touch-pan-x touch-pan-y pb-1 no-scrollbar">
             {areas.map((area) => (
               <button
                 key={area}
@@ -156,7 +156,7 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
           </div>
 
           {/* City filters */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-[10px]">
+          <div className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden touch-pan-x touch-pan-y pb-0.5 no-scrollbar text-[10px]">
             <span className="text-zinc-500 font-medium whitespace-nowrap pl-0.5">Cidade:</span>
             {cities.map((city) => (
               <button
@@ -179,7 +179,7 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
         </div>
 
         {/* Results Header */}
-        <div className="px-4 py-2 bg-zinc-900/20 border-b border-white/5 flex items-center justify-between text-xs text-zinc-400">
+        <div className="shrink-0 px-4 py-2 bg-zinc-900/20 border-b border-white/5 flex items-center justify-between text-xs text-zinc-400">
           <span>{filteredCourses.length} cursos encontrados</span>
           {userCandidateScore200 !== undefined && (
             <span className="text-purple-400 font-semibold">
@@ -189,7 +189,7 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
         </div>
 
         {/* Courses List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-3">
           {filteredCourses.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 text-zinc-500 flex items-center justify-center mx-auto">

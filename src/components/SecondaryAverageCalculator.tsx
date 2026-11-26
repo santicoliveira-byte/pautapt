@@ -1117,7 +1117,7 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
         </div>
 
         {/* Scrollable Container with Sticky First Column for mobile / iPhone */}
-        <div className="overflow-x-auto rounded-3xl border border-white/10 bg-zinc-900/90 backdrop-blur-xl shadow-ios-card scrollbar-thin">
+        <div className="overflow-x-auto overflow-y-hidden touch-pan-x touch-pan-y rounded-3xl border border-white/10 bg-zinc-900/90 backdrop-blur-xl shadow-ios-card scrollbar-thin">
           <table className="w-full min-w-[820px] text-xs text-left border-collapse">
             <thead>
               <tr className="border-b border-white/10 text-[11px] font-bold text-zinc-300 uppercase tracking-wider bg-zinc-950/50">
@@ -1508,8 +1508,8 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 
       {/* Modal to configure / pick an Annual 12th year subject */}
       {editingAnnualSubject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-zinc-900 border border-white/10 p-5 shadow-2xl space-y-4 animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in overscroll-contain">
+          <div className="w-full max-w-sm max-h-[90dvh] overflow-y-auto overscroll-contain rounded-3xl bg-zinc-900 border border-white/10 p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">

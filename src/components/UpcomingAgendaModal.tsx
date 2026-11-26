@@ -147,10 +147,10 @@ export const UpcomingAgendaModal: React.FC<UpcomingAgendaModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg bg-zinc-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overscroll-contain">
+      <div className="relative w-full max-w-lg bg-zinc-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-zinc-900/50">
+        <div className="shrink-0 p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-zinc-900/50">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
               <Calendar className="w-5 h-5" />
@@ -192,7 +192,7 @@ export const UpcomingAgendaModal: React.FC<UpcomingAgendaModalProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
           {/* Top Quick Actions */}
           <div className="flex items-center justify-between">
             <button

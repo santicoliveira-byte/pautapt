@@ -64,8 +64,8 @@ export const NumpadModal: React.FC<NumpadModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-md bg-zinc-950 border-t border-white/10 rounded-t-3xl p-4 safe-bottom shadow-2xl animate-slide-up">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain">
+      <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain bg-zinc-950 border-t border-white/10 rounded-t-3xl p-4 safe-bottom shadow-2xl animate-slide-up">
         {/* iOS Drag Indicator */}
         <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-3" />
 

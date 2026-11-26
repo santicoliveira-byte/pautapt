@@ -165,7 +165,7 @@ export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> =
   };
 
   return (
-    <div className="max-w-md mx-auto pb-28 pt-2 px-4 space-y-4 animate-fade-in">
+    <div className="max-w-3xl mx-auto pb-28 pt-2 px-3 sm:px-6 space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">

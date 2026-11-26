@@ -57,8 +57,8 @@ export const TabBar: React.FC<TabBarProps> = ({ activeTab, onChangeTab, testsCou
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-safe pt-1">
-      <div className="max-w-md mx-auto mb-2 bg-zinc-950/85 backdrop-blur-2xl border border-white/[0.1] rounded-3xl p-1.5 shadow-2xl grid grid-cols-5 items-center">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-safe pt-1 pointer-events-none">
+      <div className="pointer-events-auto max-w-md mx-auto mb-2 bg-zinc-950/85 backdrop-blur-2xl border border-white/[0.1] rounded-3xl p-1.5 shadow-2xl grid grid-cols-5 items-center">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;

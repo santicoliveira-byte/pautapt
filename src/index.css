@@ -23,10 +23,17 @@
   box-shadow: 0 0 25px -4px var(--accent-glow);
 }
 
+html {
+  overflow-x: clip;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: #000000;
   color: #f2f2f7;
+  overflow-x: clip;
+  min-height: 100dvh;
+  margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
