@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { SchoolTest } from '../types';
+import { SchoolTest, SubjectCriteriaMap } from '../types';
 import {
   exportDataAsJSON,
-  importDataFromJSON,
+  importBackupFromJSON,
   clearAllTests,
 } from '../utils/storage';
 import {
@@ -23,7 +23,8 @@ import {
 
 interface SettingsViewProps {
   tests: SchoolTest[];
-  onImportSuccess: (imported: SchoolTest[]) => void;
+  subjectCriteria?: SubjectCriteriaMap;
+  onImportSuccess: (imported: SchoolTest[], importedCriteria?: SubjectCriteriaMap) => void;
   onClearAll: () => void;
   currentAccent: AccentColor;
   onAccentChange: (accent: AccentColor) => void;
@@ -31,6 +32,7 @@ interface SettingsViewProps {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   tests,
+  subjectCriteria,
   onImportSuccess,
   onClearAll,
   currentAccent,
@@ -41,7 +43,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [importMessage, setImportMessage] = useState<string | null>(null);
 
   const handleExport = () => {
-    const jsonStr = exportDataAsJSON(tests);
+    const jsonStr = exportDataAsJSON(tests, subjectCriteria);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -63,10 +65,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      const imported = importDataFromJSON(content);
+      const imported = importBackupFromJSON(content);
       if (imported) {
-        onImportSuccess(imported);
-        setImportMessage(`Importados ${imported.length} testes com sucesso!`);
+        onImportSuccess(imported.tests, imported.subjectCriteria);
+        setImportMessage(`Importados ${imported.tests.length} testes com sucesso!`);
       } else {
         setImportMessage('Ficheiro inválido ou corrompido.');
       }

@@ -1,9 +1,31 @@
-import { SchoolTest, UpcomingEvaluation } from '../types';
+import { SchoolTest, SubjectCriteriaMap, UpcomingEvaluation } from '../types';
 import { detectEvaluationType } from './gradeUtils';
 
 const STORAGE_KEY = 'pautapt_tests_v2';
 const UPCOMING_KEY = 'pautapt_upcoming_evaluations_v1';
 const TARGET_COURSE_KEY = 'pautapt_target_course_id_v1';
+const SUBJECT_CRITERIA_KEY = 'pautapt_subject_criteria_v1';
+
+export function loadSubjectCriteria(): SubjectCriteriaMap {
+  try {
+    const raw = localStorage.getItem(SUBJECT_CRITERIA_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed as SubjectCriteriaMap;
+  } catch (error) {
+    console.error('Erro ao ler critérios por disciplina do localStorage:', error);
+    return {};
+  }
+}
+
+export function saveSubjectCriteria(criteriaMap: SubjectCriteriaMap): void {
+  try {
+    localStorage.setItem(SUBJECT_CRITERIA_KEY, JSON.stringify(criteriaMap));
+  } catch (error) {
+    console.error('Erro ao guardar critérios por disciplina no localStorage:', error);
+  }
+}
 
 export function loadSavedUpcomingEvaluations(): UpcomingEvaluation[] {
   try {
@@ -106,12 +128,16 @@ export function saveTests(tests: SchoolTest[]): void {
   }
 }
 
-export function exportDataAsJSON(tests: SchoolTest[]): string {
+export function exportDataAsJSON(
+  tests: SchoolTest[],
+  subjectCriteria?: SubjectCriteriaMap
+): string {
   return JSON.stringify(
     {
       exportedAt: new Date().toISOString(),
-      version: '1.0',
+      version: '1.1',
       tests,
+      ...(subjectCriteria ? { subjectCriteria } : {}),
     },
     null,
     2
@@ -126,6 +152,29 @@ export function importDataFromJSON(jsonString: string): SchoolTest[] | null {
     }
     if (Array.isArray(parsed)) {
       return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function importBackupFromJSON(
+  jsonString: string
+): { tests: SchoolTest[]; subjectCriteria?: SubjectCriteriaMap } | null {
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (parsed && Array.isArray(parsed.tests)) {
+      const subjectCriteria =
+        parsed.subjectCriteria &&
+        typeof parsed.subjectCriteria === 'object' &&
+        !Array.isArray(parsed.subjectCriteria)
+          ? (parsed.subjectCriteria as SubjectCriteriaMap)
+          : undefined;
+      return { tests: parsed.tests, subjectCriteria };
+    }
+    if (Array.isArray(parsed)) {
+      return { tests: parsed };
     }
     return null;
   } catch {

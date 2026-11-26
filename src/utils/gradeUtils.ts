@@ -1,4 +1,13 @@
-import { EvaluationType, GradeClassification, SchoolTest, SubjectStats } from '../types';
+import {
+  CriterionDomainStat,
+  DomainItem,
+  EvaluationType,
+  GradeClassification,
+  SchoolTest,
+  SubjectCriteriaMap,
+  SubjectCriterionDomain,
+  SubjectStats,
+} from '../types';
 
 export const ANNUAL_12TH_SUBJECTS = [
   'Química',
@@ -272,9 +281,230 @@ export function getClassificationBadgeStyle(classification: GradeClassification)
 }
 
 /**
- * Calcula estatísticas agrupadas por disciplina com médias ponderadas corretas
+ * Normaliza o nome da disciplina para correspondência fiável (sem acentos/maiúsculas)
  */
-export function calculateSubjectStats(tests: SchoolTest[]): Record<string, SubjectStats> {
+export function normalizeSubjectKey(name: string): string {
+  return (name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+/**
+ * Procura os critérios de avaliação de uma disciplina no mapa configurado
+ */
+export function getSubjectCriteriaEntry(
+  criteriaMap: SubjectCriteriaMap | undefined,
+  subjectName: string
+): { key: string; criteria: SubjectCriterionDomain[] } {
+  if (!criteriaMap || !subjectName) return { key: subjectName, criteria: [] };
+  if (criteriaMap[subjectName]) {
+    return { key: subjectName, criteria: criteriaMap[subjectName] };
+  }
+  const targetNorm = normalizeSubjectKey(subjectName);
+  for (const [k, v] of Object.entries(criteriaMap)) {
+    if (normalizeSubjectKey(k) === targetNorm) {
+      return { key: k, criteria: v };
+    }
+  }
+  return { key: subjectName.trim(), criteria: [] };
+}
+
+export interface CriteriaPreset {
+  id: string;
+  label: string;
+  description: string;
+  domains: { name: string; percentage: number }[];
+}
+
+export const CRITERIA_PRESETS: CriteriaPreset[] = [
+  {
+    id: 'ciencias',
+    label: 'Ciências / Matemática',
+    description: 'Conhecimento 50% • Resolução 30% • Comunicação 20%',
+    domains: [
+      { name: 'Conhecimento e Conceitos', percentage: 50 },
+      { name: 'Resolução de Problemas', percentage: 30 },
+      { name: 'Comunicação e Trabalho Prático', percentage: 20 },
+    ],
+  },
+  {
+    id: 'linguas',
+    label: 'Português / Línguas',
+    description: 'Leitura 35% • Escrita 25% • Gramática 25% • Oralidade 15%',
+    domains: [
+      { name: 'Leitura e Educação Literária', percentage: 35 },
+      { name: 'Escrita', percentage: 25 },
+      { name: 'Gramática', percentage: 25 },
+      { name: 'Oralidade', percentage: 15 },
+    ],
+  },
+  {
+    id: 'lab',
+    label: 'FQ / Biologia (Teórico-Prática)',
+    description: 'Teórica 60% • Laboratorial 30% • Trabalho Autónomo 10%',
+    domains: [
+      { name: 'Componente Teórica', percentage: 60 },
+      { name: 'Componente Laboratorial / Prática', percentage: 30 },
+      { name: 'Participação e Trabalho Autónomo', percentage: 10 },
+    ],
+  },
+  {
+    id: 'ef',
+    label: 'Educação Física',
+    description: 'Atividades Físicas 70% • Aptidão Física 15% • Conhecimentos 15%',
+    domains: [
+      { name: 'Atividades Físicas', percentage: 70 },
+      { name: 'Aptidão Física', percentage: 15 },
+      { name: 'Conhecimentos', percentage: 15 },
+    ],
+  },
+  {
+    id: 'geral',
+    label: 'Geral (Instrumentos)',
+    description: 'Testes 60% • Questões-Aula/Trabalhos 30% • Atitudes 10%',
+    domains: [
+      { name: 'Testes Sumativos', percentage: 60 },
+      { name: 'Questões-Aula e Trabalhos', percentage: 30 },
+      { name: 'Participação e Atitudes', percentage: 10 },
+    ],
+  },
+];
+
+export function buildCriteriaFromPreset(preset: CriteriaPreset): SubjectCriterionDomain[] {
+  const ts = Date.now();
+  return preset.domains.map((d, idx) => ({
+    id: `crit-${ts}-${idx}`,
+    name: d.name,
+    percentage: d.percentage,
+  }));
+}
+
+/**
+ * Gera ou sincroniza a lista de DomainItem de um teste a partir dos critérios selecionados,
+ * distribuindo a cotação total proporcionalmente às percentagens e preservando notas já lançadas.
+ */
+export function distributeScaleByCriteria(
+  criteria: SubjectCriterionDomain[],
+  selectedIds: string[],
+  totalScale: number,
+  existingDomains: DomainItem[] = []
+): DomainItem[] {
+  const selected = criteria.filter((c) => selectedIds.includes(c.id));
+  if (selected.length === 0) return existingDomains;
+
+  const pctSum = selected.reduce((sum, c) => sum + (Number(c.percentage) || 0), 0);
+  const existingByCriterionId = new Map<string, DomainItem>();
+  existingDomains.forEach((d) => {
+    if (d.criterionId) existingByCriterionId.set(d.criterionId, d);
+  });
+
+  const isSmallScale = totalScale <= 20;
+  let accumulated = 0;
+
+  return selected.map((c, index) => {
+    const ratio = pctSum > 0 ? (Number(c.percentage) || 0) / pctSum : 1 / selected.length;
+    let allocatedMax: number;
+
+    if (index === selected.length - 1) {
+      const rem = totalScale - accumulated;
+      allocatedMax = Math.max(0, isSmallScale ? Number(rem.toFixed(1)) : Math.round(rem));
+    } else {
+      const raw = ratio * totalScale;
+      allocatedMax = isSmallScale ? Number(raw.toFixed(1)) : Math.round(raw);
+      accumulated += allocatedMax;
+    }
+
+    const prev = existingByCriterionId.get(c.id);
+    const prevObtained = prev ? Number(prev.obtainedScore) || 0 : 0;
+
+    return {
+      id: prev?.id || `dom-${c.id}`,
+      criterionId: c.id,
+      name: c.name,
+      maxScore: allocatedMax,
+      obtainedScore: Math.min(allocatedMax, Math.max(0, prevObtained)),
+    };
+  });
+}
+
+/**
+ * Devolve os IDs de critérios da disciplina presentes num teste
+ */
+export function getTestCriterionIds(
+  test: SchoolTest,
+  activeCriteria: SubjectCriterionDomain[]
+): string[] {
+  const activeIds = new Set(activeCriteria.map((c) => c.id));
+  const found = new Set<string>();
+
+  if (Array.isArray(test.criteriaDomainIds)) {
+    test.criteriaDomainIds.forEach((id) => {
+      if (activeIds.has(id)) found.add(id);
+    });
+  }
+
+  if (test.mode !== 'direct' && Array.isArray(test.domains)) {
+    test.domains.forEach((d) => {
+      if (d.criterionId && activeIds.has(d.criterionId)) {
+        found.add(d.criterionId);
+      }
+    });
+  }
+
+  return Array.from(found);
+}
+
+/**
+ * Calcula a nota (0-20) obtida por cada critério presente num teste
+ */
+export function getTestCriterionScores(
+  test: SchoolTest,
+  activeCriteria: SubjectCriterionDomain[]
+): Record<string, number> {
+  const activeIds = new Set(activeCriteria.map((c) => c.id));
+  const scores: Record<string, number> = {};
+
+  if (test.mode !== 'direct' && Array.isArray(test.domains)) {
+    const groupedPoints: Record<string, { obtained: number; max: number }> = {};
+
+    test.domains.forEach((d) => {
+      if (d.criterionId && activeIds.has(d.criterionId)) {
+        if (!groupedPoints[d.criterionId]) {
+          groupedPoints[d.criterionId] = { obtained: 0, max: 0 };
+        }
+        groupedPoints[d.criterionId].obtained += Number(d.obtainedScore) || 0;
+        groupedPoints[d.criterionId].max += Number(d.maxScore) || 0;
+      }
+    });
+
+    Object.entries(groupedPoints).forEach(([cid, pts]) => {
+      if (pts.max > 0) {
+        scores[cid] = calculateGrade20(pts.obtained, pts.max);
+      }
+    });
+  }
+
+  if (Array.isArray(test.criteriaDomainIds)) {
+    test.criteriaDomainIds.forEach((cid) => {
+      if (activeIds.has(cid) && scores[cid] === undefined) {
+        scores[cid] = test.grade20;
+      }
+    });
+  }
+
+  return scores;
+}
+
+/**
+ * Calcula estatísticas agrupadas por disciplina com médias ponderadas corretas
+ * (usando os Critérios de Avaliação por domínios da disciplina quando configurados)
+ */
+export function calculateSubjectStats(
+  tests: SchoolTest[],
+  criteriaMap?: SubjectCriteriaMap
+): Record<string, SubjectStats> {
   const grouped: Record<string, SchoolTest[]> = {};
 
   tests.forEach((test) => {
@@ -304,15 +534,99 @@ export function calculateSubjectStats(tests: SchoolTest[]): Record<string, Subje
       if (t.grade20 < lowest) lowest = t.grade20;
     });
 
+    const legacyWeightedAverage = totalWeight > 0 ? weightedSum / totalWeight : 0;
+    const { criteria } = getSubjectCriteriaEntry(criteriaMap, subject);
+
+    let finalWeightedAverage = legacyWeightedAverage;
+    let usedCriteria = false;
+    let criteriaStats: CriterionDomainStat[] | undefined;
+    let evaluatedCriteriaPct: number | undefined;
+    let totalCriteriaPct: number | undefined;
+    let untaggedTestCount = 0;
+
+    if (criteria.length > 0) {
+      const accumulators: Record<
+        string,
+        { sumWeightedScore: number; sumTestWeight: number; testCount: number }
+      > = {};
+      criteria.forEach((c) => {
+        accumulators[c.id] = { sumWeightedScore: 0, sumTestWeight: 0, testCount: 0 };
+      });
+
+      let taggedWeightSum = 0;
+      let untaggedWeightSum = 0;
+      let untaggedWeightedScoreSum = 0;
+
+      subjectTests.forEach((t) => {
+        const w = getEffectiveWeight(t);
+        const testScores = getTestCriterionScores(t, criteria);
+        const matchedIds = Object.keys(testScores);
+
+        if (matchedIds.length > 0) {
+          taggedWeightSum += w;
+          matchedIds.forEach((cid) => {
+            if (accumulators[cid]) {
+              accumulators[cid].sumWeightedScore += testScores[cid] * w;
+              accumulators[cid].sumTestWeight += w;
+              accumulators[cid].testCount += 1;
+            }
+          });
+        } else {
+          untaggedTestCount += 1;
+          untaggedWeightSum += w;
+          untaggedWeightedScoreSum += t.grade20 * w;
+        }
+      });
+
+      criteriaStats = criteria.map((c) => {
+        const acc = accumulators[c.id];
+        return {
+          criterionId: c.id,
+          name: c.name,
+          percentage: c.percentage,
+          average:
+            acc.sumTestWeight > 0
+              ? Number((acc.sumWeightedScore / acc.sumTestWeight).toFixed(2))
+              : null,
+          testCount: acc.testCount,
+        };
+      });
+
+      totalCriteriaPct = criteria.reduce((sum, c) => sum + (Number(c.percentage) || 0), 0);
+      const evaluated = criteriaStats.filter((cs) => cs.average !== null && cs.percentage > 0);
+      evaluatedCriteriaPct = evaluated.reduce((sum, cs) => sum + cs.percentage, 0);
+
+      if (evaluatedCriteriaPct > 0) {
+        const criteriaAvg =
+          evaluated.reduce((sum, cs) => sum + cs.average! * cs.percentage, 0) /
+          evaluatedCriteriaPct;
+
+        if (untaggedWeightSum > 0 && taggedWeightSum > 0) {
+          const untaggedAvg = untaggedWeightedScoreSum / untaggedWeightSum;
+          finalWeightedAverage =
+            (criteriaAvg * taggedWeightSum + untaggedAvg * untaggedWeightSum) /
+            (taggedWeightSum + untaggedWeightSum);
+        } else {
+          finalWeightedAverage = criteriaAvg;
+        }
+        usedCriteria = true;
+      }
+    }
+
     result[subject] = {
       name: subject,
       count,
       simpleAverage: Number((sumGrades / count).toFixed(2)),
-      weightedAverage: totalWeight > 0 ? Number((weightedSum / totalWeight).toFixed(2)) : 0,
+      weightedAverage: Number(finalWeightedAverage.toFixed(2)),
       highestGrade: highest === -Infinity ? 0 : highest,
       lowestGrade: lowest === Infinity ? 0 : lowest,
       totalWeight,
       tests: subjectTests.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      usedCriteria,
+      criteriaStats,
+      evaluatedCriteriaPct,
+      totalCriteriaPct,
+      untaggedTestCount,
     };
   });
 

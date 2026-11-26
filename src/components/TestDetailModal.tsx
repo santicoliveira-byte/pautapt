@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { EvaluationType, SchoolTest } from '../types';
+import React, { useEffect, useState } from 'react';
+import { EvaluationType, SchoolTest, SubjectCriterionDomain } from '../types';
 import { GradeDisplayCard } from './GradeDisplayCard';
 import {
   detectEvaluationType,
   EVALUATION_TYPE_CONFIGS,
   formatWeight,
+  getTestCriterionIds,
+  getTestCriterionScores,
 } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import {
@@ -16,6 +18,8 @@ import {
   Edit3,
   Sliders,
   Check,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 
 interface TestDetailModalProps {
@@ -24,6 +28,8 @@ interface TestDetailModalProps {
   onDelete: (id: string) => void;
   onEdit: (test: SchoolTest) => void;
   onUpdateWeight?: (testId: string, newWeight: number, newType?: EvaluationType) => void;
+  subjectCriteria?: SubjectCriterionDomain[];
+  onUpdateCriteriaDomains?: (testId: string, domainIds: string[]) => void;
 }
 
 export const TestDetailModal: React.FC<TestDetailModalProps> = ({
@@ -32,14 +38,33 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
   onDelete,
   onEdit,
   onUpdateWeight,
+  subjectCriteria = [],
+  onUpdateCriteriaDomains,
 }) => {
-  if (!test) return null;
-
-  const initialType = test.type || detectEvaluationType(test.title);
   const [isEditingWeight, setIsEditingWeight] = useState(false);
-  const [selectedWeight, setSelectedWeight] = useState<number>(test.weight || 70);
-  const [selectedType, setSelectedType] = useState<EvaluationType>(initialType);
+  const [selectedWeight, setSelectedWeight] = useState<number>(test?.weight || 2);
+  const [selectedType, setSelectedType] = useState<EvaluationType>(
+    test ? test.type || detectEvaluationType(test.title) : 'teste'
+  );
   const [justSavedWeight, setJustSavedWeight] = useState(false);
+
+  const [isEditingCriteria, setIsEditingCriteria] = useState(false);
+  const [selectedCriteriaIds, setSelectedCriteriaIds] = useState<string[]>([]);
+  const [justSavedCriteria, setJustSavedCriteria] = useState(false);
+
+  useEffect(() => {
+    if (test) {
+      setSelectedWeight(test.weight || 2);
+      setSelectedType(test.type || detectEvaluationType(test.title));
+      setIsEditingWeight(false);
+      setJustSavedWeight(false);
+      setSelectedCriteriaIds(getTestCriterionIds(test, subjectCriteria));
+      setIsEditingCriteria(false);
+      setJustSavedCriteria(false);
+    }
+  }, [test, subjectCriteria]);
+
+  if (!test) return null;
 
   const formattedDate = new Date(test.date).toLocaleDateString('pt-PT', {
     weekday: 'long',
@@ -49,6 +74,8 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
   });
 
   const typeConfig = EVALUATION_TYPE_CONFIGS[test.type || detectEvaluationType(test.title)];
+  const currentCriterionIds = getTestCriterionIds(test, subjectCriteria);
+  const currentCriterionScores = getTestCriterionScores(test, subjectCriteria);
 
   const handleSaveWeight = () => {
     if (onUpdateWeight) {
@@ -60,6 +87,25 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
         setIsEditingWeight(false);
       }, 700);
     }
+  };
+
+  const handleSaveCriteria = () => {
+    if (onUpdateCriteriaDomains) {
+      onUpdateCriteriaDomains(test.id, selectedCriteriaIds);
+      triggerHaptic('success');
+      setJustSavedCriteria(true);
+      setTimeout(() => {
+        setJustSavedCriteria(false);
+        setIsEditingCriteria(false);
+      }, 700);
+    }
+  };
+
+  const toggleCriterion = (id: string) => {
+    triggerHaptic('light');
+    setSelectedCriteriaIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
   };
 
   return (
@@ -244,6 +290,108 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
               </div>
             )}
           </div>
+
+          {/* Criteria Domains Present Editor Card */}
+          {subjectCriteria.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-zinc-900/80 border border-blue-500/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-blue-400" />
+                  <span className="text-xs font-semibold text-white">Domínios Presentes</span>
+                </div>
+                {onUpdateCriteriaDomains && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingCriteria(!isEditingCriteria)}
+                    className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+                  >
+                    {isEditingCriteria ? 'Fechar' : 'Alterar'}
+                  </button>
+                )}
+              </div>
+
+              {!isEditingCriteria ? (
+                currentCriterionIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentCriterionIds.map((cid) => {
+                      const crit = subjectCriteria.find((c) => c.id === cid);
+                      if (!crit) return null;
+                      const score = currentCriterionScores[cid];
+                      return (
+                        <span
+                          key={cid}
+                          className="text-[11px] px-2 py-1 rounded-xl bg-blue-500/15 text-blue-200 border border-blue-500/30 font-medium flex items-center gap-1.5"
+                        >
+                          <span>{crit.name}</span>
+                          <span className="text-[10px] text-blue-400 font-bold">
+                            {crit.percentage}%
+                          </span>
+                          {score !== undefined && (
+                            <span className="text-[10px] text-emerald-400 font-bold">
+                              • {score.toFixed(1)} val
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-amber-400/90">
+                    Nenhum domínio selecionado neste teste. Toca em "Alterar" para indicar quais os critérios avaliados.
+                  </p>
+                )
+              ) : (
+                <div className="pt-2 border-t border-white/5 space-y-2.5 animate-fade-in">
+                  <div className="flex flex-wrap gap-1.5">
+                    {subjectCriteria.map((crit) => {
+                      const isSel = selectedCriteriaIds.includes(crit.id);
+                      return (
+                        <button
+                          key={crit.id}
+                          type="button"
+                          onClick={() => toggleCriterion(crit.id)}
+                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl border transition-all ${
+                            isSel
+                              ? 'bg-blue-600/25 border-blue-500 text-white font-semibold'
+                              : 'bg-zinc-950/60 border-white/10 text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {isSel ? (
+                            <CheckSquare className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          ) : (
+                            <Square className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+                          )}
+                          <span>{crit.name}</span>
+                          <span className="text-[10px] font-bold text-blue-300">
+                            {crit.percentage}%
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveCriteria}
+                    className={`w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                      justSavedCriteria
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-blue-600 hover:bg-blue-500 text-white shadow-ios-glow-blue'
+                    }`}
+                  >
+                    {justSavedCriteria ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Domínios Atualizados!</span>
+                      </>
+                    ) : (
+                      <span>Gravar Domínios ({selectedCriteriaIds.length})</span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Test Metadata */}
           <div className="p-3 rounded-2xl bg-zinc-900/60 border border-white/5 text-xs text-zinc-300 space-y-2">

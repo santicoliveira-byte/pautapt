@@ -5,7 +5,16 @@ export interface DomainItem {
   name: string;
   maxScore: number;
   obtainedScore: number;
+  criterionId?: string; // Links this test item to a SubjectCriterionDomain.id
 }
+
+export interface SubjectCriterionDomain {
+  id: string;
+  name: string;
+  percentage: number; // Percentage weight of this domain in the subject criteria (e.g., 50)
+}
+
+export type SubjectCriteriaMap = Record<string, SubjectCriterionDomain[]>;
 
 export type GradeClassification = 'excelente' | 'bom' | 'suficiente' | 'insuficiente';
 
@@ -16,9 +25,10 @@ export interface SchoolTest {
   title: string;
   subject: string;
   totalScale: number;
-  weight: number; // percentage in the subject average (e.g. 70% or 15%)
+  weight: number; // weight in the domain/subject average (e.g. Teste = 2x, Questão-Aula = 1x)
   mode: EvaluationMode;
   domains: DomainItem[];
+  criteriaDomainIds?: string[]; // Criteria domain IDs present in this test
   obtainedPoints: number;
   grade20: number; // Final grade 0.00 to 20.00
   percentage: number; // 0% to 100%
@@ -27,6 +37,14 @@ export interface SchoolTest {
   date: string;
   notes?: string;
   type?: EvaluationType;
+}
+
+export interface CriterionDomainStat {
+  criterionId: string;
+  name: string;
+  percentage: number;
+  average: number | null;
+  testCount: number;
 }
 
 export interface SubjectStats {
@@ -38,6 +56,11 @@ export interface SubjectStats {
   lowestGrade: number;
   totalWeight: number;
   tests: SchoolTest[];
+  usedCriteria?: boolean;
+  criteriaStats?: CriterionDomainStat[];
+  evaluatedCriteriaPct?: number;
+  totalCriteriaPct?: number;
+  untaggedTestCount?: number;
 }
 
 export interface UpcomingEvaluation {

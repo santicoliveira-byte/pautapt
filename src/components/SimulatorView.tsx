@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SchoolTest } from '../types';
+import { SchoolTest, SubjectCriteriaMap } from '../types';
 import {
   calculateSubjectStats,
   simulateRequiredGrade,
@@ -21,6 +21,7 @@ import {
 
 interface SimulatorViewProps {
   tests: SchoolTest[];
+  subjectCriteria?: SubjectCriteriaMap;
   initialSubject?: string;
   initialTab?: 'test' | 'secondary' | 'higher-ed';
   onNavigateToCalculatorWithParams?: (subject: string, targetScore: number) => void;
@@ -29,12 +30,13 @@ interface SimulatorViewProps {
 
 export const SimulatorView: React.FC<SimulatorViewProps> = ({
   tests,
+  subjectCriteria,
   initialSubject,
   initialTab = 'secondary',
   onNavigateToNewTest,
 }) => {
   const [simulatorTab, setSimulatorTab] = useState<'test' | 'secondary' | 'higher-ed'>(initialTab);
-  const subjectStats = calculateSubjectStats(tests);
+  const subjectStats = calculateSubjectStats(tests, subjectCriteria);
   const existingSubjectNames = Object.keys(subjectStats);
 
   const [selectedSubject, setSelectedSubject] = useState<string>(
@@ -174,6 +176,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
         </div>
         <SecondaryAverageCalculator
           tests={tests}
+          subjectCriteria={subjectCriteria}
           onNavigateToNewTest={onNavigateToNewTest}
         />
       </div>
@@ -184,7 +187,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     return (
       <div className="max-w-md mx-auto pt-2 px-4 space-y-3">
         {renderSegmentedTabs()}
-        <HigherEducationSimulator tests={tests} />
+        <HigherEducationSimulator tests={tests} subjectCriteria={subjectCriteria} />
       </div>
     );
   }

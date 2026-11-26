@@ -1,12 +1,14 @@
 import React from 'react';
-import { SchoolTest, UpcomingEvaluation } from '../types';
+import { SchoolTest, SubjectCriteriaMap, UpcomingEvaluation } from '../types';
 import {
   calculateSubjectStats,
   getClassificationBadgeStyle,
-  getEffectiveWeight,
   detectEvaluationType,
   EVALUATION_TYPE_CONFIGS,
   formatWeight,
+  getSubjectDurationWeight,
+  getSubjectCriteriaEntry,
+  getTestCriterionIds,
 } from '../utils/gradeUtils';
 import { EvolutionChart } from './EvolutionChart';
 import { UpcomingCountdownHero } from './UpcomingCountdownHero';
@@ -22,15 +24,18 @@ import {
   Printer,
   GraduationCap,
   Target,
+  Sliders,
 } from 'lucide-react';
 
 interface DashboardViewProps {
   tests: SchoolTest[];
   evaluations?: UpcomingEvaluation[];
+  subjectCriteria?: SubjectCriteriaMap;
   onSelectTest: (test: SchoolTest) => void;
   onNewTestClick: () => void;
   onOpenSimulator: () => void;
   onSelectSubject: (subjectName: string) => void;
+  onOpenSubjects?: () => void;
   onOpenReport?: () => void;
   onOpenAgenda?: () => void;
   onQuickAddEvaluation?: () => void;
@@ -41,38 +46,43 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({
   tests,
   evaluations = [],
+  subjectCriteria = {},
   onSelectTest,
   onNewTestClick,
   onOpenSimulator,
   onSelectSubject,
+  onOpenSubjects,
   onOpenReport,
   onOpenAgenda,
   onQuickAddEvaluation,
   onOpenSecondary,
   onOpenExams,
 }) => {
-  const subjectStats = calculateSubjectStats(tests);
+  const subjectStats = calculateSubjectStats(tests, subjectCriteria);
   const subjectsList = Object.values(subjectStats);
 
-  // Overall calculations
+  // Overall calculations (respecting each subject's criteria & duration weights)
   const totalTests = tests.length;
-  let overallSum = 0;
-  let overallWeight = 0;
   let positiveTestsCount = 0;
   let highest = 0;
   let lowest = 20;
 
   tests.forEach((t) => {
-    const w = getEffectiveWeight(t);
-    overallSum += t.grade20 * w;
-    overallWeight += w;
     if (t.grade20 >= 9.5) positiveTestsCount++;
     if (t.grade20 > highest) highest = t.grade20;
     if (t.grade20 < lowest) lowest = t.grade20;
   });
 
+  const totalSubjectWeight = subjectsList.reduce(
+    (acc, curr) => acc + getSubjectDurationWeight(curr.name),
+    0
+  );
+  const weightedSubjectSum = subjectsList.reduce(
+    (acc, curr) => acc + curr.weightedAverage * getSubjectDurationWeight(curr.name),
+    0
+  );
   const overallAverage =
-    overallWeight > 0 ? Number((overallSum / overallWeight).toFixed(2)) : 0;
+    totalSubjectWeight > 0 ? Number((weightedSubjectSum / totalSubjectWeight).toFixed(2)) : 0;
 
   const successRate = totalTests > 0 ? (positiveTestsCount / totalTests) * 100 : 0;
 
@@ -239,8 +249,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Quick Tools Row (PDF Report & Agenda sync) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+        {/* Quick Tools Row (Critérios, PDF Report, Agenda sync) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          {onOpenSubjects && (
+            <div
+              onClick={onOpenSubjects}
+              className="cursor-pointer p-3 rounded-2xl bg-zinc-900/90 border border-blue-500/20 hover:border-blue-500/40 flex items-center gap-2.5 ios-pressable transition-all"
+            >
+              <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                <Sliders className="w-4 h-4" />
+              </div>
+              <div className="truncate">
+                <h5 className="text-xs font-semibold text-white truncate">Critérios %</h5>
+                <p className="text-[10px] text-zinc-400">Domínios / Disciplina</p>
+              </div>
+            </div>
+          )}
+
           {onOpenAgenda && (
             <div
               onClick={onOpenAgenda}
@@ -261,7 +286,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               onClick={onOpenReport}
               className="cursor-pointer p-3 rounded-2xl bg-zinc-900/90 border border-white/10 hover:border-white/20 flex items-center gap-2.5 ios-pressable transition-all"
             >
-              <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                 <Printer className="w-4 h-4" />
               </div>
               <div className="truncate">
@@ -273,7 +298,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div
             onClick={onOpenSimulator}
-            className="cursor-pointer p-3 rounded-2xl bg-zinc-900/90 border border-white/10 hover:border-white/20 flex items-center gap-2.5 ios-pressable transition-all col-span-2 sm:col-span-1"
+            className="cursor-pointer p-3 rounded-2xl bg-zinc-900/90 border border-white/10 hover:border-white/20 flex items-center gap-2.5 ios-pressable transition-all"
           >
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
               <Sparkles className="w-4 h-4" />
@@ -322,7 +347,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {stat.weightedAverage.toFixed(1)}
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-white">{stat.name}</h4>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="text-sm font-semibold text-white">{stat.name}</h4>
+                        {stat.usedCriteria && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/25">
+                            Critérios %
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-zinc-400">
                         {stat.count} {stat.count === 1 ? 'teste registado' : 'testes'}
                       </p>
@@ -375,6 +407,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               });
               const evalType = test.type || detectEvaluationType(test.title);
               const typeCfg = EVALUATION_TYPE_CONFIGS[evalType];
+              const { criteria: subjCriteria } = getSubjectCriteriaEntry(
+                subjectCriteria,
+                test.subject
+              );
+              const presentCriterionIds =
+                subjCriteria.length > 0 ? getTestCriterionIds(test, subjCriteria) : [];
 
               return (
                 <div
@@ -382,9 +420,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   onClick={() => onSelectTest(test)}
                   className="p-3.5 rounded-2xl bg-zinc-900/80 backdrop-blur-md border border-white/5 hover:border-white/10 cursor-pointer flex items-center justify-between ios-pressable transition-all"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`w-11 h-11 rounded-2xl ${badge.bg} ${badge.text} flex flex-col items-center justify-center border ${badge.border}`}
+                      className={`w-11 h-11 rounded-2xl shrink-0 ${badge.bg} ${badge.text} flex flex-col items-center justify-center border ${badge.border}`}
                     >
                       <span className="font-bold text-sm leading-none">
                         {test.grade20.toFixed(1)}
@@ -394,8 +432,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </span>
                     </div>
 
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-1.5">
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200">
                           {test.subject}
                         </span>
@@ -407,18 +445,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           {formattedDate}
                         </span>
                       </div>
-                      <h4 className="text-xs font-medium text-white truncate max-w-[200px]">
+                      <h4 className="text-xs font-medium text-white truncate max-w-[220px]">
                         {test.title}
                       </h4>
-                      <p className="text-[10px] text-zinc-500 flex items-center gap-1.5">
+                      <p className="text-[10px] text-zinc-500 flex items-center gap-1.5 flex-wrap">
                         <span>{test.obtainedPoints} / {test.totalScale} pts ({test.percentage.toFixed(0)}%)</span>
                         <span>•</span>
                         <span className="text-blue-400 font-semibold">Peso: {formatWeight(test.weight)}</span>
                       </p>
+                      {presentCriterionIds.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {presentCriterionIds.map((cid) => {
+                            const crit = subjCriteria.find((c) => c.id === cid);
+                            if (!crit) return null;
+                            return (
+                              <span
+                                key={cid}
+                                className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20"
+                              >
+                                {crit.name} ({crit.percentage}%)
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <ChevronRight className="w-4 h-4 text-zinc-500" />
+                  <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
                 </div>
               );
             })}

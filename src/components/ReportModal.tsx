@@ -1,5 +1,5 @@
 import React from 'react';
-import { SchoolTest } from '../types';
+import { SchoolTest, SubjectCriteriaMap } from '../types';
 import { calculateSubjectStats, getSubjectDurationWeight } from '../utils/gradeUtils';
 import { X, Printer, Award } from 'lucide-react';
 
@@ -7,12 +7,18 @@ interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   tests: SchoolTest[];
+  subjectCriteria?: SubjectCriteriaMap;
 }
 
-export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, tests }) => {
+export const ReportModal: React.FC<ReportModalProps> = ({
+  isOpen,
+  onClose,
+  tests,
+  subjectCriteria,
+}) => {
   if (!isOpen) return null;
 
-  const stats = calculateSubjectStats(tests);
+  const stats = calculateSubjectStats(tests, subjectCriteria);
   const subjects = Object.values(stats);
 
   const totalTests = tests.length;

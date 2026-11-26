@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolTest, SubjectStats, UniversityCourse } from '../types';
+import { SchoolTest, SubjectCriteriaMap, SubjectStats, UniversityCourse } from '../types';
 import { calculateSubjectStats, ANNUAL_12TH_SUBJECTS } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
@@ -198,14 +198,16 @@ const COURSE_NAME_PRESETS: Record<
 
 interface SecondaryAverageCalculatorProps {
   tests: SchoolTest[];
+  subjectCriteria?: SubjectCriteriaMap;
   onNavigateToNewTest?: (subjectName: string) => void;
 }
 
 export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProps> = ({
   tests,
+  subjectCriteria,
   onNavigateToNewTest,
 }) => {
-  const subjectStats = calculateSubjectStats(tests);
+  const subjectStats = calculateSubjectStats(tests, subjectCriteria);
 
   // Smart subject matching for tests
   const normalize = (str: string) =>

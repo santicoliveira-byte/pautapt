@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { EvaluationType, SchoolTest, UpcomingEvaluation } from './types';
+import {
+  EvaluationType,
+  SchoolTest,
+  SubjectCriteriaMap,
+  SubjectCriterionDomain,
+  UpcomingEvaluation,
+} from './types';
 import {
   loadSavedTests,
   saveTests,
   loadSavedUpcomingEvaluations,
   saveUpcomingEvaluations,
+  loadSubjectCriteria,
+  saveSubjectCriteria,
 } from './utils/storage';
+import { getSubjectCriteriaEntry } from './utils/gradeUtils';
 import { Header } from './components/Header';
 import { TabBar, TabType } from './components/TabBar';
 import { DashboardView } from './components/DashboardView';
@@ -25,6 +34,9 @@ export const App: React.FC = () => {
   const [tests, setTests] = useState<SchoolTest[]>(() => loadSavedTests());
   const [evaluations, setEvaluations] = useState<UpcomingEvaluation[]>(() =>
     loadSavedUpcomingEvaluations()
+  );
+  const [subjectCriteria, setSubjectCriteria] = useState<SubjectCriteriaMap>(() =>
+    loadSubjectCriteria()
   );
   const [isAgendaModalOpen, setIsAgendaModalOpen] = useState<boolean>(false);
   const [agendaInitialSubject, setAgendaInitialSubject] = useState<string>('');
@@ -54,6 +66,25 @@ export const App: React.FC = () => {
   useEffect(() => {
     saveUpcomingEvaluations(evaluations);
   }, [evaluations]);
+
+  // Persist subject evaluation criteria to localStorage
+  useEffect(() => {
+    saveSubjectCriteria(subjectCriteria);
+  }, [subjectCriteria]);
+
+  const handleSaveSubjectCriteria = (subjectName: string, criteria: SubjectCriterionDomain[]) => {
+    setSubjectCriteria((prev) => {
+      const { key } = getSubjectCriteriaEntry(prev, subjectName);
+      const targetKey = key || subjectName.trim();
+      const next = { ...prev };
+      if (criteria.length === 0) {
+        delete next[targetKey];
+      } else {
+        next[targetKey] = criteria;
+      }
+      return next;
+    });
+  };
 
   // Handle saving upcoming evaluation
   const handleSaveEvaluation = (savedEvaluation: UpcomingEvaluation) => {
@@ -145,6 +176,27 @@ export const App: React.FC = () => {
     }
   };
 
+  // Update criteria domains present in a test directly from modal
+  const handleUpdateTestCriteriaDomains = (testId: string, domainIds: string[]) => {
+    const allowedSet = new Set(domainIds);
+    const updateTestItem = (t: SchoolTest): SchoolTest => ({
+      ...t,
+      criteriaDomainIds: domainIds.length > 0 ? domainIds : undefined,
+      domains: Array.isArray(t.domains)
+        ? t.domains.map((d) =>
+            d.criterionId && !allowedSet.has(d.criterionId)
+              ? { ...d, criterionId: undefined }
+              : d
+          )
+        : [],
+    });
+
+    setTests((prev) => prev.map((t) => (t.id === testId ? updateTestItem(t) : t)));
+    if (selectedTestModal?.id === testId) {
+      setSelectedTestModal((prev) => (prev ? updateTestItem(prev) : null));
+    }
+  };
+
   // Delete test
   const handleDeleteTest = (id: string) => {
     setTests((prev) => prev.filter((t) => t.id !== id));
@@ -212,6 +264,7 @@ export const App: React.FC = () => {
           <DashboardView
             tests={tests}
             evaluations={evaluations}
+            subjectCriteria={subjectCriteria}
             onSelectTest={(test) => setSelectedTestModal(test)}
             onNewTestClick={() => {
               setEditingTest(null);
@@ -220,6 +273,7 @@ export const App: React.FC = () => {
             onOpenSimulator={() => setActiveTab('simulator')}
             onOpenSecondary={() => setActiveTab('secondary')}
             onOpenExams={() => setActiveTab('exams')}
+            onOpenSubjects={() => setActiveTab('subjects')}
             onSelectSubject={(subj) => {
               setSimulatorSubject(subj);
               setActiveTab('subjects');
@@ -237,6 +291,7 @@ export const App: React.FC = () => {
           <div className="max-w-5xl mx-auto pb-28 pt-2 px-3 sm:px-6 animate-fade-in">
             <SecondaryAverageCalculator
               tests={tests}
+              subjectCriteria={subjectCriteria}
               onNavigateToNewTest={handleNewTestForSubject}
             />
           </div>
@@ -244,7 +299,7 @@ export const App: React.FC = () => {
 
         {activeTab === 'exams' && (
           <div className="max-w-4xl mx-auto pb-28 pt-2 px-3 sm:px-6 animate-fade-in">
-            <HigherEducationSimulator tests={tests} />
+            <HigherEducationSimulator tests={tests} subjectCriteria={subjectCriteria} />
           </div>
         )}
 
@@ -264,6 +319,8 @@ export const App: React.FC = () => {
             <TestWizard
               onSaveTest={handleSaveTest}
               initialTest={editingTest}
+              subjectCriteria={subjectCriteria}
+              onSaveSubjectCriteria={handleSaveSubjectCriteria}
               onCancel={() => {
                 setEditingTest(null);
                 setActiveTab('dashboard');
@@ -273,9 +330,11 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'subjects' && (
-          <div className="max-w-2xl mx-auto px-2">
+          <div className="max-w-3xl mx-auto px-2">
             <SubjectsView
               tests={tests}
+              subjectCriteria={subjectCriteria}
+              onSaveSubjectCriteria={handleSaveSubjectCriteria}
               onSelectTest={(test) => setSelectedTestModal(test)}
               onNewTestForSubject={handleNewTestForSubject}
               onSimulateForSubject={handleSimulateForSubject}
@@ -292,6 +351,7 @@ export const App: React.FC = () => {
           <div className="max-w-4xl mx-auto pb-28 pt-2 px-3 sm:px-6 animate-fade-in">
             <SimulatorView
               tests={tests}
+              subjectCriteria={subjectCriteria}
               initialSubject={simulatorSubject}
               onNavigateToNewTest={handleNewTestForSubject}
             />
@@ -302,7 +362,13 @@ export const App: React.FC = () => {
           <div className="max-w-xl mx-auto px-2">
             <SettingsView
               tests={tests}
-              onImportSuccess={(imported) => setTests(imported)}
+              subjectCriteria={subjectCriteria}
+              onImportSuccess={(imported, importedCriteria) => {
+                setTests(imported);
+                if (importedCriteria) {
+                  setSubjectCriteria(importedCriteria);
+                }
+              }}
               onClearAll={() => setTests([])}
               currentAccent={currentAccent}
               onAccentChange={handleAccentChange}
@@ -330,6 +396,12 @@ export const App: React.FC = () => {
         onDelete={handleDeleteTest}
         onEdit={handleEditTest}
         onUpdateWeight={handleUpdateTestWeight}
+        subjectCriteria={
+          selectedTestModal
+            ? getSubjectCriteriaEntry(subjectCriteria, selectedTestModal.subject).criteria
+            : []
+        }
+        onUpdateCriteriaDomains={handleUpdateTestCriteriaDomains}
       />
 
       {/* Printable Report / Pauta Escolar Modal */}
@@ -337,6 +409,7 @@ export const App: React.FC = () => {
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         tests={tests}
+        subjectCriteria={subjectCriteria}
       />
 
       {/* Upcoming Evaluations & Calendar (.ics) Modal */}

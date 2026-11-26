@@ -4,6 +4,8 @@ import {
   EvaluationMode,
   EvaluationType,
   SchoolTest,
+  SubjectCriteriaMap,
+  SubjectCriterionDomain,
 } from '../types';
 import {
   PORTUGAL_DEFAULT_SUBJECTS,
@@ -14,10 +16,14 @@ import {
   detectEvaluationType,
   EVALUATION_TYPE_CONFIGS,
   formatWeight,
+  getSubjectCriteriaEntry,
+  distributeScaleByCriteria,
+  getTestCriterionIds,
 } from '../utils/gradeUtils';
 import { GradeDisplayCard } from './GradeDisplayCard';
 import { IAVEPresetsModal, IAVEPreset } from './IAVEPresetsModal';
 import { NumpadModal } from './NumpadModal';
+import { SubjectCriteriaModal } from './SubjectCriteriaModal';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
 import {
@@ -33,17 +39,23 @@ import {
   RotateCcw,
   Sparkles,
   Calculator,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 
 interface TestWizardProps {
   onSaveTest: (test: SchoolTest) => void;
   onCancel?: () => void;
   initialTest?: SchoolTest | null;
+  subjectCriteria?: SubjectCriteriaMap;
+  onSaveSubjectCriteria?: (subjectName: string, criteria: SubjectCriterionDomain[]) => void;
 }
 
 export const TestWizard: React.FC<TestWizardProps> = ({
   onSaveTest,
   initialTest,
+  subjectCriteria = {},
+  onSaveSubjectCriteria,
 }) => {
   // Wizard Step: 1 = Configuração, 2 = Introdução de Valores & Cálculo
   const [step, setStep] = useState<1 | 2>(1);
@@ -52,7 +64,8 @@ export const TestWizard: React.FC<TestWizardProps> = ({
   const [subject, setSubject] = useState<string>(initialTest?.subject || 'Matemática A');
   const [customSubject, setCustomSubject] = useState<string>('');
   const [title, setTitle] = useState<string>(initialTest?.title || '');
-  const initialDetectedType = initialTest?.type || (initialTest?.title ? detectEvaluationType(initialTest.title) : 'teste');
+  const initialDetectedType =
+    initialTest?.type || (initialTest?.title ? detectEvaluationType(initialTest.title) : 'teste');
   const [evalType, setEvalType] = useState<EvaluationType>(initialDetectedType);
   const [weight, setWeight] = useState<number>(() => {
     if (initialTest && initialTest.weight !== undefined && initialTest.weight > 0) {
@@ -60,7 +73,10 @@ export const TestWizard: React.FC<TestWizardProps> = ({
       if (initialTest.weight === 15) return 1;
       return initialTest.weight;
     }
-    return EVALUATION_TYPE_CONFIGS[initialDetectedType]?.defaultWeight || (initialDetectedType === 'teste' ? 2 : 1);
+    return (
+      EVALUATION_TYPE_CONFIGS[initialDetectedType]?.defaultWeight ||
+      (initialDetectedType === 'teste' ? 2 : 1)
+    );
   });
   const term = initialTest?.term || 'Geral';
   const [date, setDate] = useState<string>(
@@ -70,16 +86,39 @@ export const TestWizard: React.FC<TestWizardProps> = ({
   const [customScaleInput, setCustomScaleInput] = useState<string>('');
   const [mode, setMode] = useState<EvaluationMode>(initialTest?.mode || 'domains');
 
+  // Initial criteria matching for initial subject
+  const initialSubjectStr = initialTest?.subject || 'Matemática A';
+  const initialSubjCriteria = getSubjectCriteriaEntry(subjectCriteria, initialSubjectStr).criteria;
+  const isEditingExistingTest = Boolean(initialTest && initialTest.id);
+
+  const [selectedCriteriaIds, setSelectedCriteriaIds] = useState<string[]>(() => {
+    if (initialTest && initialTest.id) {
+      return getTestCriterionIds(initialTest, initialSubjCriteria);
+    }
+    return initialSubjCriteria.map((c) => c.id);
+  });
+
   // Domains / Questions state
-  const [domains, setDomains] = useState<DomainItem[]>(
-    initialTest?.domains && initialTest.domains.length > 0
-      ? initialTest.domains
-      : [
-          { id: '1', name: 'Domínio 1 (ex: Conhecimento)', maxScore: 80, obtainedScore: 0 },
-          { id: '2', name: 'Domínio 2 (ex: Raciocínio & Cálculo)', maxScore: 80, obtainedScore: 0 },
-          { id: '3', name: 'Domínio 3 (ex: Comunicação)', maxScore: 40, obtainedScore: 0 },
-        ]
-  );
+  const [domains, setDomains] = useState<DomainItem[]>(() => {
+    if (initialTest?.id && initialTest.domains && initialTest.domains.length > 0) {
+      return initialTest.domains;
+    }
+    if (!isEditingExistingTest && initialSubjCriteria.length > 0 && (initialTest?.mode || 'domains') === 'domains') {
+      return distributeScaleByCriteria(
+        initialSubjCriteria,
+        initialSubjCriteria.map((c) => c.id),
+        initialTest?.totalScale || 200
+      );
+    }
+    if (initialTest?.domains && initialTest.domains.length > 0) {
+      return initialTest.domains;
+    }
+    return [
+      { id: '1', name: 'Domínio 1 (ex: Conhecimento)', maxScore: 80, obtainedScore: 0 },
+      { id: '2', name: 'Domínio 2 (ex: Raciocínio & Cálculo)', maxScore: 80, obtainedScore: 0 },
+      { id: '3', name: 'Domínio 3 (ex: Comunicação)', maxScore: 40, obtainedScore: 0 },
+    ];
+  });
 
   // Direct calculation obtained points
   const [directObtained, setDirectObtained] = useState<number>(
@@ -88,15 +127,26 @@ export const TestWizard: React.FC<TestWizardProps> = ({
 
   const [notes, setNotes] = useState<string>(initialTest?.notes || '');
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [isCriteriaModalOpen, setIsCriteriaModalOpen] = useState<boolean>(false);
 
-  // Sync state whenever initialTest changes (e.g. user clicked "+ Teste" for an annual subject)
+  const finalSubjectName =
+    subject === 'OUTRA' ? customSubject.trim() || 'Outra Disciplina' : subject;
+  const { criteria: currentSubjectCriteria } = getSubjectCriteriaEntry(
+    subjectCriteria,
+    finalSubjectName
+  );
+
+  // Sync state whenever initialTest changes (e.g. user clicked "+ Teste" for an annual subject or Edit)
   React.useEffect(() => {
     if (initialTest) {
-      setSubject(initialTest.subject || 'Matemática A');
+      const subj = initialTest.subject || 'Matemática A';
+      const scale = initialTest.totalScale || 200;
+      const m = initialTest.mode || 'domains';
+      setSubject(subj);
       setTitle(initialTest.title || '');
       setDate(initialTest.date || new Date().toISOString().split('T')[0]);
-      setTotalScale(initialTest.totalScale || 200);
-      setMode(initialTest.mode || 'domains');
+      setTotalScale(scale);
+      setMode(m);
       const detType = initialTest.type || detectEvaluationType(initialTest.title || '');
       setEvalType(detType);
       const effectiveW =
@@ -108,9 +158,28 @@ export const TestWizard: React.FC<TestWizardProps> = ({
             : initialTest.weight
           : EVALUATION_TYPE_CONFIGS[detType]?.defaultWeight || (detType === 'teste' ? 2 : 1);
       setWeight(effectiveW);
-      if (initialTest.domains && initialTest.domains.length > 0) {
-        setDomains(initialTest.domains);
+
+      const { criteria } = getSubjectCriteriaEntry(subjectCriteria, subj);
+      if (initialTest.id) {
+        setSelectedCriteriaIds(getTestCriterionIds(initialTest, criteria));
+        if (initialTest.domains && initialTest.domains.length > 0) {
+          setDomains(initialTest.domains);
+        }
+      } else if (criteria.length > 0) {
+        const allIds = criteria.map((c) => c.id);
+        setSelectedCriteriaIds(allIds);
+        if (m === 'domains') {
+          setDomains(distributeScaleByCriteria(criteria, allIds, scale));
+        } else if (initialTest.domains && initialTest.domains.length > 0) {
+          setDomains(initialTest.domains);
+        }
+      } else {
+        setSelectedCriteriaIds([]);
+        if (initialTest.domains && initialTest.domains.length > 0) {
+          setDomains(initialTest.domains);
+        }
       }
+
       setDirectObtained(initialTest.obtainedPoints || 0);
       setNotes(initialTest.notes || '');
       setCustomSubject('');
@@ -165,26 +234,100 @@ export const TestWizard: React.FC<TestWizardProps> = ({
     mode === 'direct' ? totalScale : currentTotalMaxPoints
   );
 
+  // Helper to sync criteria selection and domains when subject changes
+  const syncCriteriaForSubject = (
+    targetSubject: string,
+    targetMode: EvaluationMode = mode,
+    targetScale: number = totalScale
+  ) => {
+    const { criteria } = getSubjectCriteriaEntry(subjectCriteria, targetSubject);
+    if (criteria.length > 0) {
+      const allIds = criteria.map((c) => c.id);
+      setSelectedCriteriaIds(allIds);
+      if (targetMode === 'domains') {
+        setDomains(distributeScaleByCriteria(criteria, allIds, targetScale));
+      }
+    } else {
+      setSelectedCriteriaIds([]);
+      if (targetMode === 'domains' && domains.some((d) => d.criterionId)) {
+        setDomains([
+          { id: '1', name: 'Domínio 1 (ex: Conhecimento)', maxScore: Math.round(targetScale * 0.4), obtainedScore: 0 },
+          { id: '2', name: 'Domínio 2 (ex: Raciocínio & Cálculo)', maxScore: Math.round(targetScale * 0.4), obtainedScore: 0 },
+          { id: '3', name: 'Domínio 3 (ex: Comunicação)', maxScore: targetScale - Math.round(targetScale * 0.4) * 2, obtainedScore: 0 },
+        ]);
+      }
+    }
+  };
+
   // Helper to switch to custom subject if selected
   const handleSubjectSelect = (sub: string) => {
     if (sub === 'OUTRA') {
       setSubject('OUTRA');
+      setSelectedCriteriaIds([]);
     } else {
       setSubject(sub);
       setCustomSubject('');
+      syncCriteriaForSubject(sub);
     }
   };
 
-  const finalSubjectName = subject === 'OUTRA' ? customSubject.trim() || 'Outra Disciplina' : subject;
+  const handleToggleCriterion = (critId: string) => {
+    triggerHaptic('light');
+    const exists = selectedCriteriaIds.includes(critId);
+    const nextIds = exists
+      ? selectedCriteriaIds.filter((id) => id !== critId)
+      : [...selectedCriteriaIds, critId];
+    setSelectedCriteriaIds(nextIds);
+
+    if (mode === 'domains' && currentSubjectCriteria.length > 0) {
+      if (nextIds.length > 0) {
+        setDomains((prev) =>
+          distributeScaleByCriteria(currentSubjectCriteria, nextIds, totalScale, prev)
+        );
+      } else {
+        setDomains((prev) => prev.map((d) => ({ ...d, criterionId: undefined })));
+      }
+    }
+  };
+
+  const handleSelectAllCriteria = () => {
+    triggerHaptic('light');
+    const allIds = currentSubjectCriteria.map((c) => c.id);
+    setSelectedCriteriaIds(allIds);
+    if (mode === 'domains' && allIds.length > 0) {
+      setDomains((prev) =>
+        distributeScaleByCriteria(currentSubjectCriteria, allIds, totalScale, prev)
+      );
+    }
+  };
+
+  const handleClearSelectedCriteria = () => {
+    triggerHaptic('light');
+    setSelectedCriteriaIds([]);
+    if (mode === 'domains') {
+      setDomains((prev) => prev.map((d) => ({ ...d, criterionId: undefined })));
+    }
+  };
+
+  const handleSaveWizardCriteria = (subj: string, newCriteria: SubjectCriterionDomain[]) => {
+    onSaveSubjectCriteria?.(subj, newCriteria);
+    if (newCriteria.length > 0) {
+      const allIds = newCriteria.map((c) => c.id);
+      setSelectedCriteriaIds(allIds);
+      if (mode === 'domains') {
+        setDomains((prev) => distributeScaleByCriteria(newCriteria, allIds, totalScale, prev));
+      }
+    } else {
+      setSelectedCriteriaIds([]);
+      setDomains((prev) => prev.map((d) => ({ ...d, criterionId: undefined })));
+    }
+  };
 
   // Add domain
   const handleAddDomain = () => {
     const nextId = String(Date.now());
     const count = domains.length + 1;
-    const defaultName =
-      mode === 'domains'
-        ? `Domínio ${count}`
-        : `Questão ${count}`;
+    const defaultName = mode === 'domains' ? `Domínio ${count}` : `Questão ${count}`;
 
     setDomains([
       ...domains,
@@ -195,13 +338,21 @@ export const TestWizard: React.FC<TestWizardProps> = ({
   // Remove domain
   const handleRemoveDomain = (id: string) => {
     if (domains.length <= 1) return;
-    setDomains(domains.filter((d) => d.id !== id));
+    const target = domains.find((d) => d.id === id);
+    const remaining = domains.filter((d) => d.id !== id);
+    setDomains(remaining);
+    if (target?.criterionId) {
+      const stillHasCriterion = remaining.some((d) => d.criterionId === target.criterionId);
+      if (!stillHasCriterion) {
+        setSelectedCriteriaIds((prev) => prev.filter((cid) => cid !== target.criterionId));
+      }
+    }
   };
 
   // Update domain field
   const handleUpdateDomain = (
     id: string,
-    field: 'name' | 'maxScore' | 'obtainedScore',
+    field: 'name' | 'maxScore' | 'obtainedScore' | 'criterionId',
     value: string | number
   ) => {
     setDomains((prev) =>
@@ -219,6 +370,9 @@ export const TestWizard: React.FC<TestWizardProps> = ({
         if (field === 'name') {
           return { ...d, name: String(value) };
         }
+        if (field === 'criterionId') {
+          return { ...d, criterionId: value ? String(value) : undefined };
+        }
         return d;
       })
     );
@@ -227,23 +381,66 @@ export const TestWizard: React.FC<TestWizardProps> = ({
   // Switch mode and configure defaults
   const handleModeChange = (newMode: EvaluationMode) => {
     setMode(newMode);
-    if (newMode === 'questions' && (!domains.length || domains[0].name.startsWith('Domínio'))) {
-      setDomains([
-        { id: 'q1', name: 'Grupo I / Q1', maxScore: 50, obtainedScore: 0 },
-        { id: 'q2', name: 'Grupo II / Q2', maxScore: 75, obtainedScore: 0 },
-        { id: 'q3', name: 'Grupo III / Q3', maxScore: 75, obtainedScore: 0 },
-      ]);
-    } else if (newMode === 'domains' && (!domains.length || domains[0].name.startsWith('Grupo'))) {
-      setDomains([
-        { id: 'd1', name: 'Domínio 1 (Conhecimento)', maxScore: 80, obtainedScore: 0 },
-        { id: 'd2', name: 'Domínio 2 (Raciocínio & Cálculo)', maxScore: 80, obtainedScore: 0 },
-        { id: 'd3', name: 'Domínio 3 (Comunicação)', maxScore: 40, obtainedScore: 0 },
-      ]);
+    if (newMode === 'questions') {
+      const isCurrentlyDomainTemplate =
+        !domains.length ||
+        domains[0].name.startsWith('Domínio') ||
+        domains.some((d) => Boolean(d.criterionId));
+      if (isCurrentlyDomainTemplate) {
+        const isSmall = totalScale <= 20;
+        const p1 = isSmall ? 5 : Math.round(totalScale * 0.25);
+        const p2 = isSmall ? 7.5 : Math.round(totalScale * 0.375);
+        const p3 = Math.max(0, totalScale - p1 - p2);
+        setDomains([
+          { id: 'q1', name: 'Grupo I / Q1', maxScore: p1, obtainedScore: 0 },
+          { id: 'q2', name: 'Grupo II / Q2', maxScore: p2, obtainedScore: 0 },
+          { id: 'q3', name: 'Grupo III / Q3', maxScore: p3, obtainedScore: 0 },
+        ]);
+      }
+    } else if (newMode === 'domains') {
+      if (currentSubjectCriteria.length > 0 && selectedCriteriaIds.length > 0) {
+        setDomains(
+          distributeScaleByCriteria(currentSubjectCriteria, selectedCriteriaIds, totalScale)
+        );
+      } else if (!domains.length || domains[0].name.startsWith('Grupo')) {
+        setDomains([
+          { id: 'd1', name: 'Domínio 1 (Conhecimento)', maxScore: 80, obtainedScore: 0 },
+          { id: 'd2', name: 'Domínio 2 (Raciocínio & Cálculo)', maxScore: 80, obtainedScore: 0 },
+          { id: 'd3', name: 'Domínio 3 (Comunicação)', maxScore: 40, obtainedScore: 0 },
+        ]);
+      }
+    }
+  };
+
+  // Update totalScale and proportionally redistribute linked criteria domains if no grades entered yet
+  const handleScalePresetSelect = (newScale: number) => {
+    setTotalScale(newScale);
+    setCustomScaleInput('');
+    if (
+      mode === 'domains' &&
+      currentSubjectCriteria.length > 0 &&
+      selectedCriteriaIds.length > 0 &&
+      domains.every((d) => !d.obtainedScore)
+    ) {
+      setDomains((prev) =>
+        distributeScaleByCriteria(currentSubjectCriteria, selectedCriteriaIds, newScale, prev)
+      );
     }
   };
 
   // Quick distribution: scale domains proportionally to match totalScale
   const handleAutoAdjustDomainsToScale = () => {
+    if (
+      mode === 'domains' &&
+      currentSubjectCriteria.length > 0 &&
+      selectedCriteriaIds.length > 0
+    ) {
+      setDomains((prev) =>
+        distributeScaleByCriteria(currentSubjectCriteria, selectedCriteriaIds, totalScale, prev)
+      );
+      return;
+    }
+
     const currentSum = domains.reduce((acc, d) => acc + d.maxScore, 0);
     if (currentSum === 0) return;
     const factor = totalScale / currentSum;
@@ -251,7 +448,6 @@ export const TestWizard: React.FC<TestWizardProps> = ({
     let accumulated = 0;
     const updated = domains.map((d, index) => {
       if (index === domains.length - 1) {
-        // give remaining to last to avoid rounding errors
         const lastScore = totalScale - accumulated;
         return { ...d, maxScore: Math.max(0, Math.round(lastScore)) };
       }
@@ -269,7 +465,23 @@ export const TestWizard: React.FC<TestWizardProps> = ({
       title.trim() ||
       `Teste de ${finalSubjectName} (${new Date(date).toLocaleDateString('pt-PT')})`;
 
-    const effectiveWeight = Number(weight) > 0 ? Number(weight) : (EVALUATION_TYPE_CONFIGS[evalType]?.defaultWeight || (evalType === 'teste' ? 2 : 1));
+    const effectiveWeight =
+      Number(weight) > 0
+        ? Number(weight)
+        : EVALUATION_TYPE_CONFIGS[evalType]?.defaultWeight || (evalType === 'teste' ? 2 : 1);
+
+    const activeCritIds = new Set(currentSubjectCriteria.map((c) => c.id));
+    const combinedCritIds = new Set<string>();
+    selectedCriteriaIds.forEach((id) => {
+      if (activeCritIds.has(id)) combinedCritIds.add(id);
+    });
+    if (mode !== 'direct') {
+      domains.forEach((d) => {
+        if (d.criterionId && activeCritIds.has(d.criterionId)) {
+          combinedCritIds.add(d.criterionId);
+        }
+      });
+    }
 
     const newTest: SchoolTest = {
       id: initialTest?.id || String(Date.now()),
@@ -280,6 +492,7 @@ export const TestWizard: React.FC<TestWizardProps> = ({
       type: evalType,
       mode,
       domains: mode === 'direct' ? [] : domains,
+      criteriaDomainIds: combinedCritIds.size > 0 ? Array.from(combinedCritIds) : undefined,
       obtainedPoints: currentTotalObtained,
       grade20: currentGrade20,
       percentage: scaleToUse > 0 ? (currentTotalObtained / scaleToUse) * 100 : 0,
@@ -461,7 +674,11 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                 type="text"
                 placeholder="Escreve o nome da disciplina..."
                 value={customSubject}
-                onChange={(e) => setCustomSubject(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomSubject(val);
+                  if (val.trim()) syncCriteriaForSubject(val.trim());
+                }}
                 autoFocus
                 className="w-full bg-zinc-950 border border-blue-500/50 rounded-2xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -491,6 +708,98 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                   )}
                 </optgroup>
               </select>
+            )}
+          </div>
+
+          {/* Card: Critérios de Avaliação (Domínios Presentes neste Teste) */}
+          <div className="bg-zinc-900/80 backdrop-blur-xl border border-blue-500/20 rounded-3xl p-4 shadow-ios-card space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5" />
+                  Domínios Presentes ({finalSubjectName})
+                </label>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  {currentSubjectCriteria.length > 0
+                    ? 'Seleciona quais os domínios dos critérios de avaliação presentes neste teste.'
+                    : 'Define a % de cada domínio nos critérios desta disciplina para calcular a média por domínios.'}
+                </p>
+              </div>
+              {onSaveSubjectCriteria && (
+                <button
+                  type="button"
+                  onClick={() => setIsCriteriaModalOpen(true)}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 shrink-0 ios-pressable transition-colors"
+                >
+                  {currentSubjectCriteria.length > 0 ? 'Editar %' : '+ Definir %'}
+                </button>
+              )}
+            </div>
+
+            {currentSubjectCriteria.length > 0 && (
+              <div className="space-y-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {currentSubjectCriteria.map((crit) => {
+                    const isChecked = selectedCriteriaIds.includes(crit.id);
+                    return (
+                      <button
+                        key={crit.id}
+                        type="button"
+                        onClick={() => handleToggleCriterion(crit.id)}
+                        className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-2xl border transition-all ios-pressable ${
+                          isChecked
+                            ? 'bg-blue-600/25 border-blue-500 text-white font-semibold shadow-sm'
+                            : 'bg-zinc-950/60 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                        }`}
+                      >
+                        {isChecked ? (
+                          <CheckSquare className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                        ) : (
+                          <Square className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+                        )}
+                        <span>{crit.name}</span>
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                            isChecked
+                              ? 'bg-blue-500/30 text-blue-200'
+                              : 'bg-zinc-800 text-zinc-500'
+                          }`}
+                        >
+                          {crit.percentage}%
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1">
+                  <span>
+                    {selectedCriteriaIds.length} de {currentSubjectCriteria.length} selecionados
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllCriteria}
+                      className="text-blue-400 hover:underline font-medium"
+                    >
+                      Todos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearSelectedCriteria}
+                      className="text-zinc-400 hover:text-white hover:underline font-medium"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+
+                {selectedCriteriaIds.length === 0 && (
+                  <p className="text-[10px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2">
+                    Nenhum domínio selecionado — este teste será registado sem associação direta a um domínio específico.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -637,10 +946,7 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                   <button
                     key={preset.value}
                     type="button"
-                    onClick={() => {
-                      setTotalScale(preset.value);
-                      setCustomScaleInput('');
-                    }}
+                    onClick={() => handleScalePresetSelect(preset.value)}
                     className={`p-2.5 rounded-2xl border text-left transition-all ios-pressable ${
                       totalScale === preset.value && !customScaleInput
                         ? 'bg-blue-600/20 border-blue-500/80 text-white shadow-sm'
@@ -739,49 +1045,89 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                       className="text-[10px] text-blue-400 hover:underline flex items-center gap-0.5"
                     >
                       <RotateCcw className="w-2.5 h-2.5" />
-                      Ajustar a {totalScale}
+                      {mode === 'domains' && currentSubjectCriteria.length > 0 && selectedCriteriaIds.length > 0
+                        ? `Distribuir por % (${totalScale})`
+                        : `Ajustar a ${totalScale}`}
                     </button>
                   </div>
                 </div>
 
-                {domains.map((domain, index) => (
-                  <div
-                    key={domain.id}
-                    className="flex items-center gap-2 bg-zinc-950/70 p-2 rounded-2xl border border-white/5"
-                  >
-                    <span className="text-xs text-zinc-500 font-mono w-4 text-center">
-                      {index + 1}
-                    </span>
-                    <input
-                      type="text"
-                      value={domain.name}
-                      onChange={(e) => handleUpdateDomain(domain.id, 'name', e.target.value)}
-                      placeholder="Nome do domínio..."
-                      className="flex-1 bg-transparent text-xs text-white placeholder-zinc-600 focus:outline-none"
-                    />
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min="0"
-                        value={domain.maxScore || ''}
-                        onChange={(e) =>
-                          handleUpdateDomain(domain.id, 'maxScore', e.target.value)
-                        }
-                        className="w-16 bg-zinc-900 border border-white/10 rounded-xl px-2 py-1 text-right text-xs text-white font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                      <span className="text-[10px] text-zinc-500">pts</span>
-                      {domains.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDomain(domain.id)}
-                          className="p-1 text-zinc-600 hover:text-red-400 ios-pressable transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                {domains.map((domain, index) => {
+                  const linkedCrit = domain.criterionId
+                    ? currentSubjectCriteria.find((c) => c.id === domain.criterionId)
+                    : undefined;
+                  const availableCriteriaForQuestions = currentSubjectCriteria.filter((c) =>
+                    selectedCriteriaIds.includes(c.id)
+                  );
+
+                  return (
+                    <div
+                      key={domain.id}
+                      className="bg-zinc-950/70 p-2 rounded-2xl border border-white/5 space-y-1.5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-zinc-500 font-mono w-4 text-center">
+                          {index + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={domain.name}
+                          onChange={(e) => handleUpdateDomain(domain.id, 'name', e.target.value)}
+                          placeholder="Nome do domínio..."
+                          className="flex-1 bg-transparent text-xs text-white placeholder-zinc-600 focus:outline-none min-w-0"
+                        />
+                        {linkedCrit && mode === 'domains' && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/25 shrink-0">
+                            {linkedCrit.percentage}%
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            type="number"
+                            min="0"
+                            value={domain.maxScore || ''}
+                            onChange={(e) =>
+                              handleUpdateDomain(domain.id, 'maxScore', e.target.value)
+                            }
+                            className="w-16 bg-zinc-900 border border-white/10 rounded-xl px-2 py-1 text-right text-xs text-white font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          <span className="text-[10px] text-zinc-500">pts</span>
+                          {domains.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDomain(domain.id)}
+                              className="p-1 text-zinc-600 hover:text-red-400 ios-pressable transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {mode === 'questions' && availableCriteriaForQuestions.length > 0 && (
+                        <div className="flex items-center justify-between pl-6 pr-1 pt-1 border-t border-white/5">
+                          <span className="text-[10px] text-zinc-500">Critério:</span>
+                          <select
+                            value={domain.criterionId || ''}
+                            onChange={(e) =>
+                              handleUpdateDomain(domain.id, 'criterionId', e.target.value)
+                            }
+                            className="bg-zinc-900 border border-white/10 rounded-lg px-2 py-0.5 text-[10px] text-blue-300 focus:outline-none"
+                          >
+                            <option value="" className="bg-zinc-900 text-zinc-300">
+                              Todos os domínios selecionados
+                            </option>
+                            {availableCriteriaForQuestions.map((c) => (
+                              <option key={c.id} value={c.id} className="bg-zinc-900 text-white">
+                                {c.name} ({c.percentage}%)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <div className="pt-2 flex items-center justify-between">
                   <button
@@ -814,10 +1160,21 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                 )}
               </div>
             ) : (
-              <div className="bg-zinc-950/60 rounded-2xl p-3 border border-white/5 text-center">
+              <div className="bg-zinc-950/60 rounded-2xl p-3 border border-white/5 text-center space-y-1.5">
                 <p className="text-xs text-zinc-400">
                   Modo Cotação Direta: no próximo passo basta introduzir o total de pontos obtidos de 0 a {totalScale}.
                 </p>
+                {selectedCriteriaIds.length > 0 && (
+                  <p className="text-[11px] text-blue-300">
+                    A nota obtida será aplicada aos domínios selecionados:{' '}
+                    <strong>
+                      {currentSubjectCriteria
+                        .filter((c) => selectedCriteriaIds.includes(c.id))
+                        .map((c) => `${c.name} (${c.percentage}%)`)
+                        .join(', ')}
+                    </strong>
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -913,6 +1270,39 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                 Ajustar Peso
               </button>
             </div>
+
+            {currentSubjectCriteria.length > 0 && (
+              <div className="pt-2 border-t border-white/5 space-y-1.5">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-zinc-400 uppercase font-semibold tracking-wider">
+                    Domínios Presentes
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-blue-400 hover:underline font-medium"
+                  >
+                    Alterar seleção
+                  </button>
+                </div>
+                {selectedCriteriaIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {currentSubjectCriteria
+                      .filter((c) => selectedCriteriaIds.includes(c.id))
+                      .map((c) => (
+                        <span
+                          key={c.id}
+                          className="text-[10px] px-2 py-0.5 rounded-lg bg-blue-500/15 text-blue-300 border border-blue-500/25 font-medium"
+                        >
+                          {c.name} ({c.percentage}%)
+                        </span>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-amber-400">Nenhum domínio selecionado</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Value Inputs: Mode Specific */}
@@ -1004,17 +1394,29 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                 {domains.map((item, index) => {
                   const itemPct =
                     item.maxScore > 0 ? (item.obtainedScore / item.maxScore) * 100 : 0;
+                  const itemGrade20 =
+                    item.maxScore > 0 ? calculateGrade20(item.obtainedScore, item.maxScore) : 0;
+                  const linkedCrit = item.criterionId
+                    ? currentSubjectCriteria.find((c) => c.id === item.criterionId)
+                    : undefined;
 
                   return (
                     <div
                       key={item.id}
                       className="bg-zinc-950/80 p-3 rounded-2xl border border-white/5 space-y-2"
                     >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-white">
-                          {item.name || `Item ${index + 1}`}
-                        </span>
-                        <div className="flex items-center gap-1.5">
+                      <div className="flex items-center justify-between text-xs gap-2">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-white block truncate">
+                            {item.name || `Item ${index + 1}`}
+                          </span>
+                          {linkedCrit && (
+                            <span className="text-[10px] text-blue-400 font-medium">
+                              Critério: {linkedCrit.percentage}% na disciplina
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <input
                             type="number"
                             min="0"
@@ -1060,8 +1462,8 @@ export const TestWizard: React.FC<TestWizardProps> = ({
                           }
                           className="w-full accent-blue-500 h-1.5 rounded-lg cursor-pointer"
                         />
-                        <span className="text-[10px] text-zinc-400 font-mono w-9 text-right">
-                          {itemPct.toFixed(0)}%
+                        <span className="text-[10px] text-zinc-400 font-mono shrink-0 text-right">
+                          {itemGrade20.toFixed(1)} val • {itemPct.toFixed(0)}%
                         </span>
                       </div>
                     </div>
@@ -1142,6 +1544,15 @@ export const TestWizard: React.FC<TestWizardProps> = ({
             handleUpdateDomain(numpadConfig.domainId, 'obtainedScore', val);
           }
         }}
+      />
+
+      {/* Subject Criteria Configuration Modal */}
+      <SubjectCriteriaModal
+        isOpen={isCriteriaModalOpen}
+        onClose={() => setIsCriteriaModalOpen(false)}
+        subjectName={finalSubjectName}
+        criteriaMap={subjectCriteria}
+        onSave={handleSaveWizardCriteria}
       />
     </div>
   );

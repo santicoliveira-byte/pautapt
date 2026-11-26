@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolTest, UniversityCourse } from '../types';
+import { SchoolTest, SubjectCriteriaMap, UniversityCourse } from '../types';
 import { calculateSubjectStats, getSubjectDurationWeight } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
@@ -17,13 +17,15 @@ import {
 interface HigherEducationSimulatorProps {
   tests: SchoolTest[];
   initialSecondaryAverage?: number;
+  subjectCriteria?: SubjectCriteriaMap;
 }
 
 export const HigherEducationSimulator: React.FC<HigherEducationSimulatorProps> = ({
   tests,
   initialSecondaryAverage,
+  subjectCriteria,
 }) => {
-  const stats = calculateSubjectStats(tests);
+  const stats = calculateSubjectStats(tests, subjectCriteria);
   const subjectList = Object.values(stats);
 
   // Automatically estimate secondary average from recorded tests using 3:2:1 duration weighting
