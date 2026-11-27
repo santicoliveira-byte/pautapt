@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SchoolTest, SubjectCriteriaMap, UpcomingEvaluation } from '../types';
+import { triggerHaptic } from '../utils/haptics';
 import {
   calculateSubjectStats,
   getClassificationBadgeStyle,
@@ -87,13 +88,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const successRate = totalTests > 0 ? (positiveTestsCount / totalTests) * 100 : 0;
   const liveSecondary = computeLiveSecondarySummary(tests, subjectCriteria);
+  const [activeChartMode, setActiveChartMode] = useState<'year' | 'secondary'>('year');
 
   return (
     <div className="max-w-4xl mx-auto pb-28 pt-2 px-3 sm:px-6 space-y-6 animate-fade-in">
       {/* Side-by-side Live Overview Cards: Média do Ano + Média do Secundário (Ao Vivo) */}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-4 items-stretch">
         {/* Square 1: Média do Ano */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 p-3.5 sm:p-5 border border-white/10 shadow-ios-card flex flex-col justify-between">
+        <div
+          onClick={() => {
+            triggerHaptic('light');
+            setActiveChartMode('year');
+          }}
+          className={`cursor-pointer relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 p-3.5 sm:p-5 border shadow-ios-card flex flex-col justify-between ios-pressable transition-all ${
+            activeChartMode === 'year'
+              ? 'border-blue-500/50 ring-2 ring-blue-500/30'
+              : 'border-white/10 hover:border-white/20'
+          }`}
+        >
           <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full bg-blue-600/20 blur-3xl pointer-events-none" />
 
           <div>
@@ -159,8 +171,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Square 2: Média do Secundário (Ao Vivo) */}
         <div
-          onClick={onOpenSecondary || onOpenSimulator}
-          className="cursor-pointer group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950/35 via-zinc-900/95 to-zinc-950 p-3.5 sm:p-5 border border-emerald-500/25 hover:border-emerald-500/50 shadow-ios-card flex flex-col justify-between ios-pressable transition-all"
+          onClick={() => {
+            triggerHaptic('light');
+            setActiveChartMode('secondary');
+          }}
+          className={`cursor-pointer group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950/35 via-zinc-900/95 to-zinc-950 p-3.5 sm:p-5 border shadow-ios-card flex flex-col justify-between ios-pressable transition-all ${
+            activeChartMode === 'secondary'
+              ? 'border-emerald-500/60 ring-2 ring-emerald-500/35'
+              : 'border-emerald-500/25 hover:border-emerald-500/50'
+          }`}
         >
           <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
 
@@ -211,16 +230,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   : 'Atualiza com novos testes'}
               </div>
             )}
-            <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-emerald-400 px-0.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerHaptic('light');
+                (onOpenSecondary || onOpenSimulator)();
+              }}
+              className="w-full flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 px-0.5 py-0.5 rounded-lg ios-pressable transition-colors"
+            >
               <span className="truncate">Editar 10º / 11º / Exames</span>
               <ChevronRight className="w-3.5 h-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-            </div>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Evolution Chart (when >= 2 tests exist) */}
-      {totalTests >= 2 && <EvolutionChart tests={tests} />}
+      {totalTests >= 2 && (
+        <EvolutionChart
+          tests={tests}
+          mode={activeChartMode}
+          subjectCriteria={subjectCriteria}
+        />
+      )}
 
       {/* Upcoming Evaluations Agenda Hero Widget */}
       {onOpenAgenda && (
