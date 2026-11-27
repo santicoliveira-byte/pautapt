@@ -9,6 +9,7 @@ import {
   getTestCriterionScores,
 } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import {
   X,
   Calendar,
@@ -51,6 +52,8 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
   const [isEditingCriteria, setIsEditingCriteria] = useState(false);
   const [selectedCriteriaIds, setSelectedCriteriaIds] = useState<string[]>([]);
   const [justSavedCriteria, setJustSavedCriteria] = useState(false);
+
+  useBodyScrollLock(!!test);
 
   useEffect(() => {
     if (test) {
@@ -109,8 +112,14 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain">
-      <div className="w-full max-w-md max-h-[90dvh] bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-slide-up flex flex-col">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md max-h-[88dvh] bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-slide-up flex flex-col"
+      >
         {/* iOS Drag handle */}
         <div className="shrink-0 pt-3 pb-1 flex justify-center sm:hidden">
           <div className="w-10 h-1 bg-zinc-700 rounded-full" />
@@ -140,7 +149,7 @@ export const TestDetailModal: React.FC<TestDetailModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className="p-4 space-y-4 flex-1 min-h-0 overflow-y-auto modal-scroll-area">
           {/* Main Grade Card */}
           <GradeDisplayCard
             obtainedPoints={test.obtainedPoints}

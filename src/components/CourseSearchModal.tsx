@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { UniversityCourse, CourseArea } from '../types';
 import { DGES_COURSES } from '../data/dgesCourses';
 import { triggerHaptic } from '../utils/haptics';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import {
   Search,
   X,
@@ -31,6 +32,8 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedArea, setSelectedArea] = useState<string>('Todas');
   const [selectedCity, setSelectedCity] = useState<string>('Todas');
+
+  useBodyScrollLock(isOpen);
 
   const areas: ('Todas' | CourseArea)[] = [
     'Todas',
@@ -189,7 +192,7 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
         </div>
 
         {/* Courses List */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto modal-scroll-area p-4 space-y-3">
           {filteredCourses.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 text-zinc-500 flex items-center justify-center mx-auto">

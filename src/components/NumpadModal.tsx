@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Delete, Check, X } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 interface NumpadModalProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ export const NumpadModal: React.FC<NumpadModalProps> = ({
   initialValue,
 }) => {
   const [valueStr, setValueStr] = useState<string>(String(initialValue || ''));
+
+  useBodyScrollLock(isOpen);
 
   useEffect(() => {
     if (isOpen) {

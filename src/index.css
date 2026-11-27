@@ -55,6 +55,13 @@ input, textarea, p, span, h1, h2, h3, h4 {
   scrollbar-width: none;
 }
 
+/* Smooth native touch scrolling inside modals without leaking to background */
+.modal-scroll-area {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
 /* iOS Safe Area Padding Utilities */
 .safe-top {
   padding-top: max(env(safe-area-inset-top), 1rem);

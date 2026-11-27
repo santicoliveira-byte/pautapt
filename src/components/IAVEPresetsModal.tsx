@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, ChevronRight, FileCheck } from 'lucide-react';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 export interface IAVEPreset {
   code: string;
@@ -81,11 +82,19 @@ export const IAVEPresetsModal: React.FC<IAVEPresetsModalProps> = ({
   onClose,
   onSelectPreset,
 }) => {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain">
-      <div className="w-full max-w-md max-h-[85dvh] bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl p-4 safe-bottom overflow-y-auto overscroll-contain shadow-2xl animate-slide-up">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md max-h-[85dvh] bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl p-4 safe-bottom overflow-y-auto modal-scroll-area shadow-2xl animate-slide-up"
+      >
         {/* iOS Drag handle */}
         <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-3 sm:hidden" />
 

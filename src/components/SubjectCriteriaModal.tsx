@@ -8,6 +8,7 @@ import {
   getSubjectCriteriaEntry,
 } from '../utils/gradeUtils';
 import { triggerHaptic } from '../utils/haptics';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import {
   X,
   Plus,
@@ -57,6 +58,8 @@ export const SubjectCriteriaModal: React.FC<SubjectCriteriaModalProps> = ({
   const [selectedSubject, setSelectedSubject] = useState<string>(subjectName || 'Matemática A');
   const [customSubject, setCustomSubject] = useState<string>('');
   const [domains, setDomains] = useState<SubjectCriterionDomain[]>([]);
+
+  useBodyScrollLock(isOpen);
 
   // Load initial domains whenever modal opens or subject changes
   useEffect(() => {
@@ -161,8 +164,14 @@ export const SubjectCriteriaModal: React.FC<SubjectCriteriaModalProps> = ({
   const existingSaved = getSubjectCriteriaEntry(criteriaMap, effectiveSubjectName).criteria;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in overscroll-contain">
-      <div className="w-full max-w-lg max-h-[90dvh] bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-slide-up flex flex-col">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in overscroll-contain"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg max-h-[88dvh] bg-zinc-950 border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-slide-up flex flex-col"
+      >
         {/* iOS Drag handle */}
         <div className="shrink-0 pt-3 pb-1 flex justify-center sm:hidden">
           <div className="w-10 h-1 bg-zinc-700 rounded-full" />
@@ -194,7 +203,7 @@ export const SubjectCriteriaModal: React.FC<SubjectCriteriaModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className="p-4 space-y-4 flex-1 min-h-0 overflow-y-auto modal-scroll-area">
           {/* Subject selector if allowed */}
           {allowSubjectSelection && (
             <div className="space-y-2">

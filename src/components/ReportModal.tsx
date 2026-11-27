@@ -2,6 +2,7 @@ import React from 'react';
 import { SchoolTest, SubjectCriteriaMap } from '../types';
 import { calculateSubjectStats, getSubjectDurationWeight } from '../utils/gradeUtils';
 import { X, Printer, Award } from 'lucide-react';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -16,6 +17,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   tests,
   subjectCriteria,
 }) => {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const stats = calculateSubjectStats(tests, subjectCriteria);
@@ -35,8 +38,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fade-in overscroll-contain print:p-0 print:bg-white">
-      <div className="w-full max-w-lg max-h-[90dvh] bg-zinc-950 border border-white/10 rounded-3xl overflow-y-auto overscroll-contain p-5 space-y-4 print:border-none print:bg-white print:text-black print:max-w-none print:max-h-none print:p-8">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fade-in overscroll-contain print:p-0 print:bg-white"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg max-h-[90dvh] bg-zinc-950 border border-white/10 rounded-3xl overflow-y-auto modal-scroll-area p-5 space-y-4 print:border-none print:bg-white print:text-black print:max-w-none print:max-h-none print:p-8"
+      >
         {/* Top Actions (hidden during print) */}
         <div className="flex items-center justify-between border-b border-white/10 pb-3 print:hidden">
           <div className="flex items-center gap-2">

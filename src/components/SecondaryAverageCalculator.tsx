@@ -21,6 +21,7 @@ import {
 } from '../utils/secondaryUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerCelebration } from '../utils/confetti';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { CourseSearchModal } from './CourseSearchModal';
 import { loadTargetCourseId, saveTargetCourseId } from '../utils/storage';
 import {
@@ -194,6 +195,8 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
   const [newSubjType, setNewSubjType] = useState<SubjectType>('bienal');
   const [editingAnnualSubject, setEditingAnnualSubject] = useState<TableSubject | null>(null);
   const [customAnnualName, setCustomAnnualName] = useState<string>('');
+
+  useBodyScrollLock(showAddModal || !!editingAnnualSubject);
 
   const handleSelectAnnualOption = (
     subjectId: string,
@@ -1267,8 +1270,14 @@ export const SecondaryAverageCalculator: React.FC<SecondaryAverageCalculatorProp
 
       {/* Modal to configure / pick an Annual 12th year subject */}
       {editingAnnualSubject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in overscroll-contain">
-          <div className="w-full max-w-sm max-h-[90dvh] overflow-y-auto overscroll-contain rounded-3xl bg-zinc-900 border border-white/10 p-5 shadow-2xl space-y-4">
+        <div
+          onClick={() => setEditingAnnualSubject(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in overscroll-contain"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm max-h-[88dvh] overflow-y-auto modal-scroll-area rounded-3xl bg-zinc-900 border border-white/10 p-5 shadow-2xl space-y-4"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UpcomingEvaluation, EvaluationType } from '../types';
 import { triggerHaptic } from '../utils/haptics';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { generateICS, downloadICSFile, generateGoogleCalendarUrl } from '../utils/calendar';
 import { PORTUGAL_DEFAULT_SUBJECTS, ANNUAL_12TH_SUBJECTS } from '../utils/gradeUtils';
 import {
@@ -36,6 +37,8 @@ export const UpcomingAgendaModal: React.FC<UpcomingAgendaModalProps> = ({
   initialSubject = '',
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
+
+  useBodyScrollLock(isOpen);
 
   // Form states
   const [subject, setSubject] = useState(initialSubject || 'Matemática A');
@@ -192,7 +195,7 @@ export const UpcomingAgendaModal: React.FC<UpcomingAgendaModalProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto modal-scroll-area p-4 sm:p-5 space-y-4">
           {/* Top Quick Actions */}
           <div className="flex items-center justify-between">
             <button
