@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Delete, Check, X } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
@@ -66,9 +67,15 @@ export const NumpadModal: React.FC<NumpadModalProps> = ({
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain">
-      <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain bg-zinc-950 border-t border-white/10 rounded-t-3xl p-4 safe-bottom shadow-2xl animate-slide-up">
+  return createPortal(
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md max-h-[88dvh] overflow-y-auto modal-scroll-area bg-zinc-950 border-t border-white/10 rounded-t-3xl p-4 safe-bottom shadow-2xl animate-slide-up"
+      >
         {/* iOS Drag Indicator */}
         <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-3" />
 
@@ -149,6 +156,7 @@ export const NumpadModal: React.FC<NumpadModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

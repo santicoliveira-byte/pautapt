@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { UniversityCourse, CourseArea } from '../types';
 import { DGES_COURSES } from '../data/dgesCourses';
 import { triggerHaptic } from '../utils/haptics';
@@ -83,9 +84,15 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overscroll-contain">
-      <div className="relative w-full max-w-2xl bg-zinc-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
+  return createPortal(
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overscroll-contain"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl bg-zinc-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88dvh]"
+      >
         {/* Header */}
         <div className="shrink-0 p-4 sm:p-5 border-b border-white/10 bg-zinc-900/60 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -336,6 +343,7 @@ export const CourseSearchModal: React.FC<CourseSearchModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

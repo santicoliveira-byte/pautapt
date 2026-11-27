@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronRight, FileCheck } from 'lucide-react';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
@@ -86,10 +87,10 @@ export const IAVEPresetsModal: React.FC<IAVEPresetsModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in overscroll-contain"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -142,6 +143,7 @@ export const IAVEPresetsModal: React.FC<IAVEPresetsModalProps> = ({
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

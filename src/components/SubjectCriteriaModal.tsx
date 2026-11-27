@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { SubjectCriteriaMap, SubjectCriterionDomain } from '../types';
 import {
   ANNUAL_12TH_SUBJECTS,
@@ -163,10 +164,10 @@ export const SubjectCriteriaModal: React.FC<SubjectCriteriaModalProps> = ({
 
   const existingSaved = getSubjectCriteriaEntry(criteriaMap, effectiveSubjectName).criteria;
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in overscroll-contain"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in overscroll-contain"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -434,6 +435,7 @@ export const SubjectCriteriaModal: React.FC<SubjectCriteriaModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
